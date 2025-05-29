@@ -7,7 +7,7 @@
     <img src="https://img.shields.io/badge/-Tailwind-00BCFF?style=for-the-badge&logo=tailwind-css&logoColor=white" />
   </div>
 
-  <h3 align="center">SaaS App - LMS with Next.js, Supabase & Payments</h3>
+  <h3 align="center">NeuraNest - LMS with Next.js, Supabase & Payments</h3>
 </div>
 
 ## 📋 <a name="table">Table of Contents</a>
@@ -15,9 +15,6 @@
 1. 🤖 [Introduction](#introduction)
 2. ⚙️ [Tech Stack](#tech-stack)
 3. 🔋 [Features](#features)
-4. 🤸 [Quick Start](#quick-start)
-5. 🔗 [Assets](#links)
-6. 🚀 [More](#more)
 
 ## 🚨 Tutorial
 
