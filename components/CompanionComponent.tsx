@@ -176,6 +176,7 @@ const CompanionComponent = ({
               alt="mic"
               width={36}
               height={36}
+              className="dark:invert"
             />
             <p className="max-sm:hidden">
               {isMuted ? 'Turn on microphone' : 'Turn off microphone'}
