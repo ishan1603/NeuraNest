@@ -16,6 +16,12 @@ enum CallStatus {
   FINISHED = 'FINISHED',
 }
 
+interface SavedMessage {
+  id: string;
+  role: string;
+  content: string;
+}
+
 interface CompanionComponentProps {
   companionId: string;
   subject: string;
@@ -61,7 +67,11 @@ const CompanionComponent = ({
     };
     const onMessage = (message: Message) => {
       if (message.type === 'transcript' && message.transcriptType === 'final') {
-        const newMessage = { role: message.role, content: message.transcript };
+        const newMessage = {
+          id: crypto.randomUUID(),
+          role: message.role,
+          content: message.transcript,
+        };
         setMessages(prev => [newMessage, ...prev]);
       }
     };
@@ -190,16 +200,16 @@ const CompanionComponent = ({
 
       <section className="transcript">
         <div className="transcript-message no-scrollbar">
-          {messages.map((message, index) => {
+          {messages.map(message => {
             if (message.role === 'assistant') {
               return (
-                <p key={index} className="max-sm:text-sm">
+                <p key={message.id} className="max-sm:text-sm">
                   {name.split(' ')[0].replace('/[.,]/g, ', '')}: {message.content}
                 </p>
               );
             } else {
               return (
-                <p key={index} className="text-primary max-sm:text-sm">
+                <p key={message.id} className="text-primary max-sm:text-sm">
                   {userName}: {message.content}
                 </p>
               );
