@@ -193,6 +193,9 @@ body {
     @apply flex w-full flex-col justify-between gap-5 rounded-4xl border border-black px-4 py-4 text-black min-lg:max-w-[410px];
   }
   .subject-badge {
+    @apply rounded-4xl bg-black px-2 py-1 text-sm text-white capitalize dark:bg-white dark:text-black;
+  }
+  .companion-card .subject-badge {
     @apply rounded-4xl bg-black px-2 py-1 text-sm text-white capitalize;
   }
   .companion-bookmark {
