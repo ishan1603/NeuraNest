@@ -14,12 +14,12 @@ export function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <button className="flex items-center justify-center p-2 hover:bg-gray-100 dark:hover:bg-gray-800">
+      <button className="flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-800">
         <Image
           src="/icons/moon.svg"
           alt="Loading theme"
-          width={20}
-          height={20}
+          width={24}
+          height={24}
           className="dark:invert"
         />
       </button>
@@ -29,13 +29,14 @@ export function ThemeToggle() {
   return (
     <button
       onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-      className="flex items-center justify-center p-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+      className="flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+      aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
     >
       <Image
         src={theme === 'dark' ? '/icons/sun.svg' : '/icons/moon.svg'}
         alt={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-        width={20}
-        height={20}
+        width={24}
+        height={24}
         className={theme === 'dark' ? 'invert' : ''}
       />
     </button>
