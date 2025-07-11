@@ -50,7 +50,7 @@ NeuraNest is an LMS SaaS platform built from scratch using Next.js, Supabase, an
 
 👉 **Billing & Subscriptions**: Easily manage plans, upgrades, and payment details.
 
-👉 **Bookmarks and Session History**: Let users organise their learning by bookmarking tutors and accessing previous sessions.
+👉 **Bookmarks and Session History**: Let users organise their learning by bookmarking tutors.
 
 👉 **Code Reusability**: Leverage reusable components and a modular codebase for efficient development.
 
