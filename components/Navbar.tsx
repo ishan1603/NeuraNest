@@ -15,7 +15,7 @@ const Navbar = () => {
       <nav className="navbar relative z-50">
         <Link href="/">
           <div className="flex cursor-pointer items-center gap-2.5">
-            <Image src="/images/logo.svg" alt="logo" width={46} height={44} />
+            <Image src="/images/logo.webp" alt="logo" width={46} height={44} />
           </div>
         </Link>
         <div className="flex items-center gap-8">
