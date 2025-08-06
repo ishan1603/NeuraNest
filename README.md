@@ -1,5 +1,5 @@
 <div align="center">
- 
+
 
   <div>
     <img src="https://img.shields.io/badge/-Next.JS-black?style=for-the-badge&logoColor=white&logo=nextdotjs&color=black" alt="next.js" />
@@ -8,6 +8,7 @@
   </div>
 
   <h3 align="center">NeuraNest - LMS with Next.js, Supabase & Payments</h3>
+  <img src="public/images/Screenshot 2025-07-15 201156.png" />
 </div>
 
 ## 📋 <a name="table">Table of Contents</a>
@@ -16,12 +17,9 @@
 2. ⚙️ [Tech Stack](#tech-stack)
 3. 🔋 [Features](#features)
 
-
-
 ## <a name="introduction">🤖 Introduction</a>
 
 NeuraNest is an LMS SaaS platform built from scratch using Next.js, Supabase, and Stripe. It features secure user authentication, flexible subscription plans, and seamless payment integration. NeuraNest enables real-time, interactive teaching experiences powered by Vapi and integrates an AI vocal agent to deliver engaging, intelligent learning sessions.
-
 
 ## <a name="tech-stack">⚙️ Tech Stack</a>
 
@@ -67,4 +65,3 @@ NeuraNest is an LMS SaaS platform built from scratch using Next.js, Supabase, an
 👉 **Search Functionality**: Find tutors quickly with robust filters and search bar.
 
 and many more, including code architecture and reusability.
-
