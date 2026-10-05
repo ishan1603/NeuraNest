@@ -42,9 +42,10 @@ const CompanionComponent = ({
   name,
   userName,
   userImage,
+  userId,
   style,
   voice,
-}: CompanionComponentProps) => {
+}: CompanionComponentProps & { userId: string }) => {
   const [callStatus, setCallStatus] = useState<CallStatus>(CallStatus.INACTIVE);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -52,6 +53,8 @@ const CompanionComponent = ({
   const lottieRef = useRef<LottieRefCurrentProps>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const [activeCallId, setActiveCallId] = useState<string | null>(null);
+
+  const [visualContent, setVisualContent] = useState<{ type: 'mermaid' | 'latex'; content: string } | null>(null);
 
   useEffect(() => {
     if (lottieRef.current) {
@@ -79,41 +82,38 @@ const CompanionComponent = ({
     const onCallEnd = () => {
       setCallStatus(CallStatus.FINISHED);
       setIsSpeaking(false);
-      // Let the webhook handle finalization, but we can do a fallback here if needed.
     };
     
     const onMessage = (message: any) => {
       if (message.type === 'transcript') {
         const isFinal = message.transcriptType === 'final';
         setMessages(prev => {
-          // If it's partial, we want to update the latest partial message for this role, or add a new one
           const newMessages = [...prev];
-          
-          // Find if the last message is from the same role and is partial
           const lastMsgIndex = newMessages.length - 1;
           const lastMsg = lastMsgIndex >= 0 ? newMessages[lastMsgIndex] : null;
 
           if (lastMsg && lastMsg.role === message.role && lastMsg.isPartial) {
-             // Update existing partial
-             newMessages[lastMsgIndex] = {
-               ...lastMsg,
-               content: message.transcript,
-               isPartial: !isFinal
-             };
+             newMessages[lastMsgIndex] = { ...lastMsg, content: message.transcript, isPartial: !isFinal };
           } else if (message.transcript.trim().length > 0) {
-             // Add new
-             newMessages.push({
-               id: crypto.randomUUID(),
-               role: message.role,
-               content: message.transcript,
-               isPartial: !isFinal
-             });
+             newMessages.push({ id: crypto.randomUUID(), role: message.role, content: message.transcript, isPartial: !isFinal });
           }
           return newMessages;
         });
       } else if (message.type === 'call-update') {
         if (message.call && message.call.id && !activeCallId) {
           setActiveCallId(message.call.id);
+        }
+      } else if (message.type === 'tool-calls') {
+        // Handle client-side tools
+        const calls = message.toolCalls || [];
+        for (const call of calls) {
+          if (call.function.name === 'render_diagram') {
+            const { code } = call.function.arguments;
+            setVisualContent({ type: 'mermaid', content: code });
+          } else if (call.function.name === 'render_equation') {
+            const { latex } = call.function.arguments;
+            setVisualContent({ type: 'latex', content: latex });
+          }
         }
       }
     };
@@ -148,7 +148,6 @@ const CompanionComponent = ({
 
   useEffect(() => {
     if (activeCallId && callStatus === CallStatus.ACTIVE) {
-       // Typically we need a max duration from somewhere, defaulting to 15 mins (900s) for now
        addToSessionHistory(companionId, activeCallId, 900).catch(console.error);
     }
   }, [activeCallId, callStatus, companionId]);
@@ -156,6 +155,7 @@ const CompanionComponent = ({
   const handleCall = async () => {
     setCallStatus(CallStatus.CONNECTING);
     setMessages([]);
+    setVisualContent(null);
     setActiveCallId(null);
 
     const assistant = configureAssistant(voice, style);
@@ -165,6 +165,7 @@ const CompanionComponent = ({
         subject,
         topic,
         style,
+        user_id: userId,
       },
     };
     
@@ -184,6 +185,12 @@ const CompanionComponent = ({
   };
 
   const shortName = name.split(' ')[0].replace(/[.,]/g, '');
+
+  // We lazily load the Whiteboard component so it doesn't break SSR
+  const [WhiteboardComponent, setWhiteboardComponent] = useState<any>(null);
+  useEffect(() => {
+    import('./Whiteboard').then(mod => setWhiteboardComponent(() => mod.default));
+  }, []);
 
   return (
     <section className="flex flex-col flex-grow min-h-0 h-[calc(100vh-150px)]">
@@ -262,30 +269,44 @@ const CompanionComponent = ({
         </div>
       </section>
 
-      <section className="flex flex-col flex-grow min-h-0 mt-8 relative">
-        <div 
-          ref={transcriptRef} 
-          className="flex flex-col gap-4 overflow-y-auto pb-20 pr-4 w-full h-full text-xl max-sm:text-lg scroll-smooth"
-        >
-          {messages.length === 0 && callStatus === CallStatus.ACTIVE && (
-            <p className="text-muted-foreground text-center italic mt-4">Listening...</p>
-          )}
-          {messages.map(message => (
-            <div key={message.id} className={cn("flex flex-col max-w-[80%]", message.role === 'assistant' ? 'self-start' : 'self-end')}>
-               <span className="text-sm font-semibold mb-1 opacity-70">
-                 {message.role === 'assistant' ? shortName : userName}
-               </span>
-               <p className={cn(
-                 "px-4 py-3 rounded-2xl", 
-                 message.role === 'assistant' ? 'bg-gray-100 dark:bg-gray-800 text-foreground rounded-tl-none' : 'bg-primary text-primary-foreground rounded-tr-none',
-                 message.isPartial && 'opacity-70'
-               )}>
-                 {message.content}
-               </p>
-            </div>
-          ))}
+      <section className={cn(
+        "flex flex-grow min-h-0 mt-8 gap-6 transition-all duration-500",
+        visualContent ? "flex-row max-md:flex-col" : "flex-col"
+      )}>
+        <div className={cn(
+          "flex flex-col flex-grow min-h-0 relative transition-all duration-500",
+          visualContent ? "w-1/3 max-md:w-full max-md:h-1/2" : "w-full"
+        )}>
+          <div 
+            ref={transcriptRef} 
+            className="flex flex-col gap-4 overflow-y-auto pb-20 pr-4 w-full h-full text-xl max-sm:text-lg scroll-smooth"
+          >
+            {messages.length === 0 && callStatus === CallStatus.ACTIVE && (
+              <p className="text-muted-foreground text-center italic mt-4">Listening...</p>
+            )}
+            {messages.map(message => (
+              <div key={message.id} className={cn("flex flex-col max-w-[90%]", message.role === 'assistant' ? 'self-start' : 'self-end')}>
+                 <span className="text-sm font-semibold mb-1 opacity-70">
+                   {message.role === 'assistant' ? shortName : userName}
+                 </span>
+                 <p className={cn(
+                   "px-4 py-3 rounded-2xl text-base", 
+                   message.role === 'assistant' ? 'bg-gray-100 dark:bg-gray-800 text-foreground rounded-tl-none' : 'bg-primary text-primary-foreground rounded-tr-none',
+                   message.isPartial && 'opacity-70'
+                 )}>
+                   {message.content}
+                 </p>
+              </div>
+            ))}
+          </div>
+          <div className="from-background via-background/90 pointer-events-none absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t to-transparent" />
         </div>
-        <div className="from-background via-background/90 pointer-events-none absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t to-transparent" />
+
+        {visualContent && WhiteboardComponent && (
+          <div className="flex-grow w-2/3 max-md:w-full max-md:h-1/2 rounded-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4">
+             <WhiteboardComponent type={visualContent.type} content={visualContent.content} />
+          </div>
+        )}
       </section>
     </section>
   );

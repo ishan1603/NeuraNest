@@ -14,6 +14,7 @@
     "@hookform/resolvers": "^5.0.1",
     "@jsmastery/utils": "^1.0.2",
     "@opentelemetry/core": "^2.0.1",
+    "@opentelemetry/sdk-trace-base": "^2.11.0",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-label": "^2.1.7",
     "@radix-ui/react-select": "^2.2.5",
