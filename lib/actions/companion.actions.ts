@@ -28,14 +28,17 @@ export const getAllCompanions = async ({
 
   let query = supabase.from('companions').select();
 
-  if (subject && topic) {
+  // Sanitize topic for PostgREST .or() filter
+  const safeTopic = topic ? String(topic).replace(/[.,%]/g, '') : '';
+  
+  if (subject && safeTopic) {
     query = query
       .ilike('subject', `%${subject}%`)
-      .or(`topic.ilike.%${topic}%,name.ilike.%${topic}%`);
+      .or(`topic.ilike.%${safeTopic}%,name.ilike.%${safeTopic}%`);
   } else if (subject) {
     query = query.ilike('subject', `%${subject}%`);
-  } else if (topic) {
-    query = query.or(`topic.ilike.%${topic}%,name.ilike.%${topic}%`);
+  } else if (safeTopic) {
+    query = query.or(`topic.ilike.%${safeTopic}%,name.ilike.%${safeTopic}%`);
   }
 
   query = query.range((page - 1) * limit, page * limit - 1);
@@ -57,13 +60,18 @@ export const getCompanion = async (id: string) => {
   return data[0];
 };
 
-export const addToSessionHistory = async (companionId: string) => {
+export const addToSessionHistory = async (companionId: string, vapiCallId: string, maxDurationSeconds: number) => {
   const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+  
   const supabase = createSupabaseClient();
   const { data, error } = await supabase.from('session_history').insert({
     companion_id: companionId,
     user_id: userId,
-  });
+    vapi_call_id: vapiCallId,
+    status: 'in_progress',
+    max_duration_seconds: maxDurationSeconds,
+  }).select().single();
 
   if (error) throw new Error(error.message);
 
@@ -75,12 +83,26 @@ export const getRecentSessions = async (limit = 10) => {
   const { data, error } = await supabase
     .from('session_history')
     .select(`companions:companion_id (*)`)
+    .eq('status', 'completed')
     .order('created_at', { ascending: false })
-    .limit(limit);
+    .limit(limit * 3); // Fetch more to allow for deduping
 
   if (error) throw new Error(error.message);
 
-  return data.map(({ companions }) => companions);
+  // Filter for public companions and remove duplicates
+  const uniqueCompanions: any[] = [];
+  const seenIds = new Set();
+  
+  for (const row of data) {
+    const comp = row.companions as any;
+    if (comp && comp.is_public && !seenIds.has(comp.id)) {
+      seenIds.add(comp.id);
+      uniqueCompanions.push(comp);
+      if (uniqueCompanions.length >= limit) break;
+    }
+  }
+
+  return uniqueCompanions;
 };
 
 export const getUserSessions = async (userId: string, limit = 10) => {
@@ -94,7 +116,19 @@ export const getUserSessions = async (userId: string, limit = 10) => {
 
   if (error) throw new Error(error.message);
 
-  return data.map(({ companions }) => companions);
+  return data.map(({ companions }) => companions).filter(Boolean);
+};
+
+export const countUserSessions = async (userId: string) => {
+  const supabase = createSupabaseClient();
+  const { count, error } = await supabase
+    .from('session_history')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('status', 'completed');
+    
+  if (error) throw new Error(error.message);
+  return count || 0;
 };
 
 export const getUserCompanions = async (userId: string) => {

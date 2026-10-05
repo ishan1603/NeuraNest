@@ -10,6 +10,7 @@ import {
   getUserCompanions,
   getUserSessions,
   getBookmarkedCompanions,
+  countUserSessions,
 } from '@/lib/actions/companion.actions';
 import Image from 'next/image';
 import CompanionsList from '@/components/CompanionsList';
@@ -21,6 +22,7 @@ const Profile = async () => {
 
   const companions = await getUserCompanions(user.id);
   const sessionHistory = await getUserSessions(user.id);
+  const sessionCount = await countUserSessions(user.id);
   const bookmarkedCompanions = await getBookmarkedCompanions(user.id);
 
   return (
@@ -39,7 +41,7 @@ const Profile = async () => {
           <div className="rouded-lg flex h-fit flex-col gap-2 border border-black p-3">
             <div className="flex items-center gap-2">
               <Image src="/icons/check.svg" alt="checkmark" width={22} height={22} />
-              <p className="text-2xl font-bold">{sessionHistory.length}</p>
+              <p className="text-2xl font-bold">{sessionCount}</p>
             </div>
             <div>Lessons completed</div>
           </div>

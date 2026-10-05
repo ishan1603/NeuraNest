@@ -1,27 +1,30 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { subjectsColors, voices } from '@/constants';
+import { subjectsColors, voices, getLanguage } from '@/constants';
 import { CreateAssistantDTO } from '@vapi-ai/web/dist/api';
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 export const getSubjectColor = (subject: string) => {
-  return subjectsColors[subject as keyof typeof subjectsColors];
+  return subjectsColors[subject as keyof typeof subjectsColors] || '#000000';
 };
 
-export const configureAssistant = (voice: string, style: string) => {
+export const configureAssistant = (voice: string, style: string, languageCode: string = 'en') => {
   const voiceId =
-    voices[voice as keyof typeof voices][style as keyof (typeof voices)[keyof typeof voices]] ||
+    voices[voice as keyof typeof voices]?.[style as keyof (typeof voices)[keyof typeof voices]] ||
     'sarah';
+
+  const lang = getLanguage(languageCode);
 
   const vapiAssistant: CreateAssistantDTO = {
     name: 'Companion',
     firstMessage: "Hello, let's start the session. Today we'll be talking about {{topic}}.",
     transcriber: {
       provider: 'deepgram',
-      model: 'nova-3',
-      language: 'en',
+      model: lang.deepgramModel,
+      language: lang.code,
     },
     voice: {
       provider: '11labs',
@@ -34,7 +37,7 @@ export const configureAssistant = (voice: string, style: string) => {
     },
     model: {
       provider: 'openai',
-      model: 'gpt-4',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -52,8 +55,8 @@ export const configureAssistant = (voice: string, style: string) => {
         },
       ],
     },
-    clientMessages: undefined,
-    serverMessages: undefined,
+    clientMessages: ['transcript', 'speech-update', 'hang', 'call-update'],
+    serverMessages: ['end-of-call-report'],
   };
   return vapiAssistant;
 };
