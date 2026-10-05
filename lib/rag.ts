@@ -66,3 +66,4 @@ export async function generateEmbeddings(chunks: string[]): Promise<number[][]> 
 
   return allEmbeddings;
 }
+

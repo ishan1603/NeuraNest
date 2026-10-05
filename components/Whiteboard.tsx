@@ -49,3 +49,4 @@ export default function Whiteboard({ type, content }: WhiteboardProps) {
     </div>
   );
 }
+

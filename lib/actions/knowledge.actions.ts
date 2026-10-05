@@ -54,3 +54,4 @@ export async function deleteKnowledgeBase(kbId: string) {
   if (error) throw new Error(error.message);
   return true;
 }
+

@@ -24,3 +24,4 @@ export async function getUserGamificationProfile() {
 
   return data || null;
 }
+

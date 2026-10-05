@@ -78,3 +78,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to process document' }, { status: 500 });
   }
 }
+
