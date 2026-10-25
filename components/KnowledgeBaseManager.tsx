@@ -1,151 +1,190 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { createKnowledgeBase, getKnowledgeBases, deleteKnowledgeBase } from '@/lib/actions/knowledge.actions';
+import { useState, useEffect, useCallback } from 'react';
+import {
+  getDocuments,
+  deleteDocument,
+  type DocumentRecord,
+} from '@/lib/actions/knowledge.actions';
 import { toast } from 'sonner';
-import { Loader2, Trash, Upload, FileText } from 'lucide-react';
+import {
+  CheckCircle2,
+  FileText,
+  Layers,
+  Loader2,
+  Trash2,
+  Upload,
+  AlertCircle,
+} from 'lucide-react';
 
 export default function KnowledgeBaseManager() {
-  const [kbs, setKbs] = useState<any[]>([]);
+  const [docs, setDocs] = useState<DocumentRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newTitle, setNewTitle] = useState('');
-  const [uploadingTo, setUploadingTo] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
-  const fetchKbs = async () => {
+  const fetchDocs = useCallback(async () => {
     try {
-      const data = await getKnowledgeBases();
-      setKbs(data);
-    } catch (e: any) {
-      toast.error('Failed to load knowledge bases: ' + e.message);
+      const data = await getDocuments();
+      setDocs(data);
+    } catch (e: unknown) {
+      toast.error(
+        'Failed to load documents: ' + (e instanceof Error ? e.message : String(e))
+      );
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchKbs();
   }, []);
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitle.trim()) return;
-    try {
-      await createKnowledgeBase(newTitle);
-      setNewTitle('');
-      fetchKbs();
-      toast.success('Knowledge Base created');
-    } catch (e: any) {
-      toast.error('Error creating: ' + e.message);
-    }
-  };
+  useEffect(() => {
+    fetchDocs();
+  }, [fetchDocs]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure?')) return;
     try {
-      await deleteKnowledgeBase(id);
-      fetchKbs();
-      toast.success('Deleted');
-    } catch (e: any) {
-      toast.error('Error deleting: ' + e.message);
+      setDocs(prev => prev.filter(d => d.id !== id));
+      await deleteDocument(id);
+      toast.success('Document removed from knowledge base');
+    } catch (e: unknown) {
+      fetchDocs();
+      toast.error('Error deleting: ' + (e instanceof Error ? e.message : String(e)));
     }
   };
 
-  const handleUpload = async (kbId: string, file: File) => {
-    setUploadingTo(kbId);
+  const handleUpload = async (file: File) => {
+    setUploading(true);
     try {
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('kbId', kbId);
-      
+
       const res = await fetch('/api/documents/process', {
         method: 'POST',
-        body: formData
+        body: formData,
       });
-      
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Upload failed');
-      
-      toast.success(`Successfully uploaded and processed ${data.chunks} chunks`);
-      fetchKbs();
-    } catch (e: any) {
-      toast.error('Upload failed: ' + e.message);
+
+      toast.success(`Indexed "${file.name}" into ${data.chunks} vector chunks`);
+      fetchDocs();
+    } catch (e: unknown) {
+      toast.error('Upload failed: ' + (e instanceof Error ? e.message : String(e)));
     } finally {
-      setUploadingTo(null);
+      setUploading(false);
     }
   };
 
-  if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin w-8 h-8" /></div>;
+  if (loading) {
+    return (
+      <div className="flex justify-center p-16">
+        <Loader2 className="h-7 w-7 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
-      <form onSubmit={handleCreate} className="flex gap-4 p-6 border rounded-xl bg-card">
-        <input 
-          type="text" 
-          placeholder="New Knowledge Base Title (e.g., Biology 101 Notes)" 
-          className="flex-grow p-3 rounded-lg border bg-background"
-          value={newTitle}
-          onChange={(e) => setNewTitle(e.target.value)}
-        />
-        <button type="submit" className="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:opacity-90">
-          Create
-        </button>
-      </form>
+      <div className="flex flex-col items-start justify-between gap-6 rounded-3xl border border-border bg-card p-7 shadow-xs sm:flex-row sm:items-center">
+        <div className="space-y-1.5">
+          <h2 className="text-xl font-bold tracking-tight">Upload Study Material (PDF)</h2>
+          <p className="max-w-xl text-sm text-muted-foreground">
+            Documents are parsed with <code className="rounded bg-muted px-1.5 py-0.5">unpdf</code>,
+            split into overlapping semantic chunks, embedded with OpenAI{' '}
+            <code className="rounded bg-muted px-1.5 py-0.5">text-embedding-3-small</code>, and
+            stored in Supabase <code className="rounded bg-muted px-1.5 py-0.5">pgvector</code> for
+            live voice retrieval.
+          </p>
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {kbs.map(kb => (
-          <div key={kb.id} className="border rounded-xl p-6 bg-card flex flex-col gap-4">
-            <div className="flex justify-between items-start">
-              <h3 className="text-xl font-bold">{kb.title}</h3>
-              <button onClick={() => handleDelete(kb.id)} className="text-red-500 hover:bg-red-500/10 p-2 rounded-lg">
-                <Trash className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="flex-grow">
-              <p className="text-sm text-muted-foreground font-semibold mb-2">Documents:</p>
-              {kb.documents && kb.documents.length > 0 ? (
-                <ul className="space-y-2">
-                  {kb.documents.map((doc: any) => (
-                    <li key={doc.id} className="flex items-center gap-2 text-sm bg-background p-2 rounded-md">
-                      <FileText className="w-4 h-4 text-blue-500" />
-                      <span className="truncate">{doc.title}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-muted-foreground italic">No documents yet.</p>
-              )}
-            </div>
-
-            <div className="mt-4">
-              <label className="relative flex items-center justify-center gap-2 w-full border-2 border-dashed rounded-lg p-4 cursor-pointer hover:bg-background/50 transition-colors">
-                {uploadingTo === kb.id ? (
-                  <>
-                    <Loader2 className="animate-spin w-5 h-5" />
-                    <span>Processing...</span>
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-5 h-5" />
-                    <span className="font-medium">Upload PDF</span>
-                  </>
-                )}
-                <input 
-                  type="file" 
-                  accept="application/pdf"
-                  className="hidden" 
-                  disabled={uploadingTo === kb.id}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleUpload(kb.id, file);
-                  }}
-                />
-              </label>
-            </div>
-          </div>
-        ))}
+        <label className="btn-primary shrink-0 cursor-pointer px-6 py-3">
+          {uploading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Embedding PDF...</span>
+            </>
+          ) : (
+            <>
+              <Upload className="h-4 w-4" />
+              <span>Select PDF</span>
+            </>
+          )}
+          <input
+            type="file"
+            accept="application/pdf"
+            className="hidden"
+            disabled={uploading}
+            onChange={e => {
+              const file = e.target.files?.[0];
+              if (file) handleUpload(file);
+              e.target.value = '';
+            }}
+          />
+        </label>
       </div>
+
+      {docs.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border bg-card/50 p-12 text-center">
+          <div className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <FileText className="h-6 w-6" />
+          </div>
+          <h3 className="text-lg font-bold">No documents uploaded yet</h3>
+          <p className="mt-1 max-w-md text-sm text-muted-foreground">
+            Upload lecture slides, textbook chapters, or study notes above so your AI tutors can
+            cite them during live voice sessions.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {docs.map(doc => (
+            <div
+              key={doc.id}
+              className="flex flex-col justify-between gap-4 rounded-3xl border border-border bg-card p-6 shadow-xs"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                    <FileText className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="truncate text-base font-bold" title={doc.name}>
+                      {doc.name}
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(doc.created_at).toLocaleDateString()} ·{' '}
+                      {Math.max(1, Math.round((doc.size_bytes || 0) / 1024))} KB
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Delete document"
+                  onClick={() => handleDelete(doc.id)}
+                  className="rounded-xl p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between border-t border-border pt-3 text-xs">
+                <span className="inline-flex items-center gap-1.5 font-medium text-muted-foreground">
+                  <Layers className="h-3.5 w-3.5" />
+                  {doc.chunk_count || 0} vector chunks
+                </span>
+                {doc.status === 'failed' ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2.5 py-0.5 font-semibold text-red-600 dark:text-red-400">
+                    <AlertCircle className="h-3 w-3" />
+                    Failed
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 font-semibold text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Ready
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
-

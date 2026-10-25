@@ -1,35 +1,39 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { Database } from '@/types/supabase';
+import { Database, Json } from '@/types/supabase';
 import OpenAI from 'openai';
 import { z } from 'zod';
 import { zodResponseFormat } from 'openai/helpers/zod';
 
-const supabase = createClient<Database>(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 const InsightsSchema = z.object({
   summary: z.string(),
   key_concepts: z.array(z.string()),
-  flashcards: z.array(z.object({
-    front: z.string(),
-    back: z.string(),
-  })),
-  quiz: z.array(z.object({
-    question: z.string(),
-    options: z.array(z.string()),
-    correct_option_index: z.number(),
-  })),
+  flashcards: z.array(
+    z.object({
+      front: z.string(),
+      back: z.string(),
+    })
+  ),
+  quiz: z.array(
+    z.object({
+      question: z.string(),
+      options: z.array(z.string()),
+      correct_option_index: z.number(),
+    })
+  ),
 });
 
 export async function POST(req: Request) {
   try {
+    const supabase = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy.supabase.co',
+      process.env.SUPABASE_SERVICE_ROLE_KEY || 'dummy_key'
+    );
+
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY || 'dummy_key',
+    });
+
     const { callId } = await req.json();
 
     if (!callId) {
@@ -55,30 +59,30 @@ export async function POST(req: Request) {
       .update({ insights_status: 'pending' })
       .eq('id', session.id);
 
-    const completion = await openai.beta.chat.completions.parse({
+    const completion = await openai.chat.completions.parse({
       model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
-          content: 'You are an educational assistant. Analyze the tutoring session transcript and extract a summary, key concepts, spaced repetition flashcards, and a multiple-choice quiz.',
+          content:
+            'You are an educational assistant. Analyze the tutoring session transcript and extract a summary, key concepts, spaced repetition flashcards, and a multiple-choice quiz.',
         },
         {
           role: 'user',
           content: `Transcript:\n\n${session.transcript_source}`,
-        }
+        },
       ],
       response_format: zodResponseFormat(InsightsSchema, 'insights'),
     });
 
-    const parsed = completion.choices[0].message.parsed;
+    const parsed = completion.choices[0]?.message?.parsed;
 
     if (!parsed) {
-        throw new Error("Failed to parse insights");
+      throw new Error('Failed to parse insights');
     }
 
-    // Insert flashcards
     if (parsed.flashcards.length > 0) {
-      const cards = parsed.flashcards.map((fc: any) => ({
+      const cards = parsed.flashcards.map((fc: { front: string; back: string }) => ({
         user_id: session.user_id,
         session_id: session.id,
         companion_id: session.companion_id,
@@ -88,18 +92,16 @@ export async function POST(req: Request) {
       await supabase.from('flashcards').insert(cards);
     }
 
-    // Update session with insights and mark as completed
     await supabase
       .from('session_history')
       .update({
         status: 'completed',
         insights_status: 'ready',
-        insights: parsed as any,
+        insights: parsed as unknown as Json,
       })
       .eq('id', session.id);
 
     return NextResponse.json({ success: true });
-
   } catch (error) {
     console.error('Insights Error:', error);
     return NextResponse.json({ error: 'Failed to generate insights' }, { status: 500 });

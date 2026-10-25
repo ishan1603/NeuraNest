@@ -2,7 +2,7 @@ import { getDocumentProxy, extractText } from 'unpdf';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY || 'dummy_key_for_build',
 });
 
 /**
@@ -12,7 +12,7 @@ export async function parsePdf(buffer: ArrayBuffer): Promise<string> {
   const data = new Uint8Array(buffer);
   const pdf = await getDocumentProxy(data);
   const { text } = await extractText(pdf, { mergePages: true });
-  return typeof text === 'string' ? text : text.join('\n');
+  return Array.isArray(text) ? (text as string[]).join('\n') : text;
 }
 
 /**
@@ -26,11 +26,10 @@ export function chunkText(text: string, chunkSize: number = 1000, overlap: numbe
 
   for (const word of words) {
     currentChunk.push(word);
-    currentLength += word.length + 1; // +1 for space
+    currentLength += word.length + 1;
 
     if (currentLength >= chunkSize) {
       chunks.push(currentChunk.join(' '));
-      // Keep overlap words (roughly overlap/5 words)
       const overlapWords = currentChunk.slice(-Math.floor(overlap / 5));
       currentChunk = [...overlapWords];
       currentLength = currentChunk.join(' ').length;
@@ -58,7 +57,7 @@ export async function generateEmbeddings(chunks: string[]): Promise<number[][]> 
     const response = await openai.embeddings.create({
       model: 'text-embedding-3-small',
       input: batch,
-      dimensions: 1536, // pgvector dimension
+      dimensions: 1536,
     });
     const batchEmbeddings = response.data.map(item => item.embedding);
     allEmbeddings.push(...batchEmbeddings);
@@ -66,4 +65,3 @@ export async function generateEmbeddings(chunks: string[]): Promise<number[][]> 
 
   return allEmbeddings;
 }
-

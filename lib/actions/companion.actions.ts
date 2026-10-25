@@ -30,7 +30,7 @@ export const getAllCompanions = async ({
 
   // Sanitize topic for PostgREST .or() filter
   const safeTopic = topic ? String(topic).replace(/[.,%]/g, '') : '';
-  
+
   if (subject && safeTopic) {
     query = query
       .ilike('subject', `%${subject}%`)
@@ -60,42 +60,73 @@ export const getCompanion = async (id: string) => {
   return data[0];
 };
 
-export const addToSessionHistory = async (companionId: string, vapiCallId: string, maxDurationSeconds: number) => {
+export const addToSessionHistory = async (
+  companionId: string,
+  vapiCallId?: string,
+  maxDurationSeconds?: number
+) => {
   const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
-  
-  const supabase = createSupabaseClient();
-  const { data, error } = await supabase.from('session_history').insert({
-    companion_id: companionId,
-    user_id: userId,
-    vapi_call_id: vapiCallId,
-    status: 'in_progress',
-    max_duration_seconds: maxDurationSeconds,
-  }).select().single();
+  if (!userId) throw new Error('Unauthorized');
 
-  if (error) throw new Error(error.message);
+  const supabase = createSupabaseClient();
+  const { data, error } = await supabase
+    .from('session_history')
+    .insert({
+      companion_id: companionId,
+      user_id: userId,
+      vapi_call_id: vapiCallId,
+      status: 'in_progress',
+      max_duration_seconds: maxDurationSeconds,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    // Fallback if v2 columns aren't migrated yet
+    const { data: fallbackData, error: fallbackError } = await supabase
+      .from('session_history')
+      .insert({
+        companion_id: companionId,
+        user_id: userId,
+      })
+      .select()
+      .single();
+
+    if (fallbackError) throw new Error(fallbackError.message);
+    return fallbackData;
+  }
 
   return data;
 };
 
 export const getRecentSessions = async (limit = 10) => {
   const supabase = createSupabaseClient();
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('session_history')
     .select(`companions:companion_id (*)`)
     .eq('status', 'completed')
     .order('created_at', { ascending: false })
-    .limit(limit * 3); // Fetch more to allow for deduping
+    .limit(limit * 3);
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    // Fallback if status column does not exist yet
+    const fallback = await supabase
+      .from('session_history')
+      .select(`companions:companion_id (*)`)
+      .order('created_at', { ascending: false })
+      .limit(limit * 3);
+    data = fallback.data;
+    error = fallback.error;
+  }
 
-  // Filter for public companions and remove duplicates
-  const uniqueCompanions: any[] = [];
-  const seenIds = new Set();
-  
+  if (error || !data) throw new Error(error?.message || 'Failed to fetch recent sessions');
+
+  const uniqueCompanions: Companion[] = [];
+  const seenIds = new Set<string>();
+
   for (const row of data) {
-    const comp = row.companions as any;
-    if (comp && comp.is_public && !seenIds.has(comp.id)) {
+    const comp = row.companions as unknown as (Companion & { is_public?: boolean }) | null;
+    if (comp && comp.is_public !== false && !seenIds.has(comp.id)) {
       seenIds.add(comp.id);
       uniqueCompanions.push(comp);
       if (uniqueCompanions.length >= limit) break;
@@ -116,7 +147,7 @@ export const getUserSessions = async (userId: string, limit = 10) => {
 
   if (error) throw new Error(error.message);
 
-  return data.map(({ companions }) => companions).filter(Boolean);
+  return data.map(({ companions }) => companions as unknown as Companion).filter(Boolean);
 };
 
 export const countUserSessions = async (userId: string) => {
@@ -126,8 +157,14 @@ export const countUserSessions = async (userId: string) => {
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId)
     .eq('status', 'completed');
-    
-  if (error) throw new Error(error.message);
+
+  if (error) {
+    const fallback = await supabase
+      .from('session_history')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+    return fallback.count || 0;
+  }
   return count || 0;
 };
 
@@ -163,11 +200,7 @@ export const newCompanionPermissions = async () => {
 
   const companionCount = data?.length;
 
-  if (companionCount >= limit) {
-    return false;
-  } else {
-    return true;
-  }
+  return companionCount < limit;
 };
 
 // Bookmarks
@@ -182,7 +215,6 @@ export const addBookmark = async (companionId: string, path: string) => {
   if (error) {
     throw new Error(error.message);
   }
-  // Revalidate the path to force a re-render of the page
 
   revalidatePath(path);
   return data;
@@ -204,7 +236,6 @@ export const removeBookmark = async (companionId: string, path: string) => {
   return data;
 };
 
-// It's almost the same as getUserCompanions, but it's for the bookmarked companions
 export const getBookmarkedCompanions = async (userId: string) => {
   const supabase = createSupabaseClient();
   const { data, error } = await supabase
@@ -217,9 +248,9 @@ export const getBookmarkedCompanions = async (userId: string) => {
     throw new Error(error.message);
   }
 
-  // Remove duplicates by keeping only the first occurrence of each companion
   const uniqueCompanions = data
-    .map(({ companions }) => companions as Companion)
+    .map(({ companions }) => companions as unknown as Companion)
+    .filter(Boolean)
     .filter((companion, index, self) => index === self.findIndex(c => c.id === companion.id));
 
   return uniqueCompanions;

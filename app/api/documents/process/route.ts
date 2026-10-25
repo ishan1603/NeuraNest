@@ -11,42 +11,42 @@ export async function POST(req: NextRequest) {
     }
 
     const formData = await req.formData();
-    const file = formData.get('file') as File;
-    const kbId = formData.get('kbId') as string;
-    const title = formData.get('title') as string || file?.name || 'Untitled Document';
+    const file = formData.get('file') as File | null;
+    const companionId = (formData.get('companionId') as string | null) || null;
+    const title = (formData.get('title') as string) || file?.name || 'Untitled Document';
 
-    if (!file || !kbId) {
-      return NextResponse.json({ error: 'Missing file or knowledge base ID' }, { status: 400 });
+    if (!file) {
+      return NextResponse.json({ error: 'Missing file' }, { status: 400 });
     }
 
-    // Process PDF
     const buffer = await file.arrayBuffer();
     const text = await parsePdf(buffer);
 
     if (!text || text.trim().length === 0) {
-      return NextResponse.json({ error: 'No text could be extracted from this PDF.' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'No text could be extracted from this PDF.' },
+        { status: 400 }
+      );
     }
 
-    // Chunk text
     const chunks = chunkText(text, 1000, 200);
-
-    // Generate embeddings
     const embeddings = await generateEmbeddings(chunks);
 
-    // Init Supabase admin client to bypass RLS for quick server-side insert, or pass user context
     const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy.supabase.co',
+      process.env.SUPABASE_SERVICE_ROLE_KEY || 'dummy_key'
     );
 
-    // 1. Create document record
     const { data: document, error: docError } = await supabase
       .from('documents')
       .insert({
-        kb_id: kbId,
-        title: title,
-        file_type: 'pdf',
-        processed: true
+        user_id: userId,
+        companion_id: companionId,
+        name: title,
+        mime_type: file.type || 'application/pdf',
+        size_bytes: file.size || 0,
+        chunk_count: chunks.length,
+        status: 'ready',
       })
       .select('id')
       .single();
@@ -56,26 +56,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to create document record' }, { status: 500 });
     }
 
-    // 2. Insert chunks with embeddings
     const chunkRows = chunks.map((chunk, index) => ({
       document_id: document.id,
+      user_id: userId,
+      companion_id: companionId,
+      chunk_index: index,
       content: chunk,
       embedding: embeddings[index],
     }));
 
-    const { error: chunksError } = await supabase
-      .from('document_chunks')
-      .insert(chunkRows);
+    const { error: chunksError } = await supabase.from('document_chunks').insert(chunkRows);
 
     if (chunksError) {
       console.error('Error inserting chunks:', chunksError);
+      await supabase
+        .from('documents')
+        .update({ status: 'failed', error: chunksError.message })
+        .eq('id', document.id);
       return NextResponse.json({ error: 'Failed to save document chunks' }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, documentId: document.id, chunks: chunks.length });
+    return NextResponse.json({
+      success: true,
+      documentId: document.id,
+      chunks: chunks.length,
+    });
   } catch (error) {
     console.error('RAG Error:', error);
     return NextResponse.json({ error: 'Failed to process document' }, { status: 500 });
   }
 }
-

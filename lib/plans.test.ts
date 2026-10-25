@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeSessionAllowance, startOfMonthUtc } from '@/lib/plans';
+import { computeSessionAllowance } from '@/lib/plans';
 
 describe('computeSessionAllowance', () => {
   it('allows a free user with no usage to start a session', () => {

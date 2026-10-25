@@ -1,67 +1,330 @@
 <div align="center">
 
-
   <div>
-    <img src="https://img.shields.io/badge/-Next.JS-black?style=for-the-badge&logoColor=white&logo=nextdotjs&color=black" alt="next.js" />
-    <img src="https://img.shields.io/badge/-Vapi-black?style=for-the-badge&logoColor=white&logo=vapi.com&color=green" alt="next.js" />
-    <img src="https://img.shields.io/badge/-Tailwind-00BCFF?style=for-the-badge&logo=tailwind-css&logoColor=white" />
+    <img src="https://img.shields.io/badge/Next.js_15-000000?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js" />
+    <img src="https://img.shields.io/badge/React_19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React" />
+    <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
+    <img src="https://img.shields.io/badge/Supabase_pgvector-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase" />
+    <img src="https://img.shields.io/badge/Vapi_Voice_AI-10B981?style=for-the-badge&logoColor=white" alt="Vapi" />
+    <img src="https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white" alt="OpenAI" />
+    <img src="https://img.shields.io/badge/Clerk-6C47FF?style=for-the-badge&logo=clerk&logoColor=white" alt="Clerk" />
+    <img src="https://img.shields.io/badge/Tailwind_CSS_v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Tailwind CSS" />
   </div>
 
-  <h3 align="center">NeuraNest - LMS with Next.js, Supabase & Payments</h3>
-  <img src="public/images/Screenshot 2025-07-15 201156.png" />
+  <br />
+
+  <h1>NeuraNest — Real-Time AI Voice Tutoring & Adaptive Learning Platform</h1>
+
+  <p align="center">
+    An interactive AI learning platform combining <strong>low-latency voice companions</strong>, <strong>RAG document grounding (pgvector)</strong>, a <strong>live Mermaid & KaTeX visual whiteboard</strong>, <strong>SuperMemo SM-2 spaced repetition flashcards</strong>, and <strong>deterministic gamification analytics</strong>.
+  </p>
+
+  <img src="public/images/Screenshot 2025-07-15 201156.png" alt="NeuraNest Platform Preview" />
 </div>
 
-## 📋 <a name="table">Table of Contents</a>
+---
 
-1. 🤖 [Introduction](#introduction)
-2. ⚙️ [Tech Stack](#tech-stack)
-3. 🔋 [Features](#features)
+## 📋 Table of Contents
 
-## <a name="introduction">🤖 Introduction</a>
+1. [Overview](#-overview)
+2. [System Architecture](#-system-architecture)
+3. [Voice Session & AI Insights Pipeline](#-voice-session--ai-insights-pipeline)
+4. [RAG Knowledge Base Pipeline](#-rag-knowledge-base-pipeline)
+5. [Database Schema (ERD)](#-database-schema-erd)
+6. [Key Features](#-key-features)
+7. [Tech Stack](#-tech-stack)
+8. [Local Setup & Environment Variables](#-local-setup--environment-variables)
+9. [Testing & Verification](#-testing--verification)
 
-NeuraNest is an LMS SaaS platform built from scratch using Next.js, Supabase, and Stripe. It features secure user authentication, flexible subscription plans, and seamless payment integration. NeuraNest enables real-time, interactive teaching experiences powered by Vapi and integrates an AI vocal agent to deliver engaging, intelligent learning sessions.
+---
 
-## <a name="tech-stack">⚙️ Tech Stack</a>
+## 🧠 Overview
 
-- **[Clerk](https://jsm.dev/converso-clerk)** is a unified platform for authentication, user management, and billing. It offers embeddable UI components, flexible APIs, and admin dashboards for secure user management. Clerk also simplifies subscription management, allowing you to define plans, create pricing pages, and control access based on subscription tiers—all in one solution.
+**NeuraNest** transforms passive self-study into an active, multi-modal tutoring experience. Students create or pick specialized AI voice companions across subjects (`Maths`, `Science`, `Coding`, `Language`, `History`, `Economics`), upload their own PDF lecture notes into a vector knowledge base, and converse naturally in real time.
 
-* **[Next.js](https://nextjs.org/)** is a powerful React framework that enables the development of fast, scalable web applications with features like server-side rendering, static site generation, and API routes for building full-stack applications.
+During a live voice session, the AI tutor can:
+- **Search uploaded study notes** via semantic vector similarity (`pgvector` + `text-embedding-3-small`) to ground answers in the student's curriculum.
+- **Draw live visual explanations** on an interactive split-screen whiteboard using **Mermaid.js** flowcharts/diagrams and **KaTeX** mathematical equations.
+- **Automatically synthesize post-session learning artifacts** (structured summary, key concepts, multiple-choice quizzes, and **SM-2 spaced repetition flashcards**) when the call ends.
 
-* **[Sentry](https://jsm.dev/converso-sentry)** is an error tracking and performance monitoring tool that helps developers fix bugs faster by providing real-time alerts, stack traces, and performance insights.
+---
 
-* **[shadcn/ui](https://ui.shadcn.com/)** is a customizable component library built on Radix UI and Tailwind CSS. It offers a modern, accessible design system with pre-built components that are easy to theme and extend, making it ideal for building polished UIs with minimal effort.
+## 🏗️ System Architecture
 
-- **[Supabase](https://supabase.com/)** is an open-source backend-as-a-service platform that provides instant APIs, real-time subscriptions, authentication, storage, and a PostgreSQL database, enabling developers to build scalable and secure applications with ease.
+```mermaid
+flowchart TB
+  subgraph Client["Client Layer (Next.js 15 App Router & React 19)"]
+    UI["Responsive UI + Dark Mode (Tailwind v4)"]
+    VoiceSDK["Vapi Web SDK (WebRTC Audio + Partial Transcripts)"]
+    WB["Live Whiteboard (Mermaid.js + KaTeX)"]
+    SRSUI["SM-2 Flashcard Review Studio"]
+    KBUI["PDF Knowledge Base Manager"]
+  end
 
-* **[Tailwind CSS](https://tailwindcss.com/)** is a utility-first CSS framework that allows developers to design custom user interfaces by applying low-level utility classes directly in HTML, streamlining the design process.
-* **[TypeScript](https://www.typescriptlang.org/)** is a superset of JavaScript that adds static typing, providing better tooling, code quality, and error detection for developers, making it ideal for building large-scale applications.
+  subgraph EdgeServer["Next.js Server Actions & Route Handlers"]
+    Actions["Server Actions (Companions, Flashcards, Gamification, Knowledge)"]
+    DocAPI["POST /api/documents/process (PDF -> Chunks -> Embeddings)"]
+    WebhookAPI["POST /api/vapi/webhook (Call Lifecycle & RAG Tool Handler)"]
+    InsightsAPI["POST /api/ai/insights (Structured Output Synthesis)"]
+  end
 
-- **[Vapi](https://jsm.dev/converso-vapi)** is a developer-centric voice AI platform that enables the creation of conversational voice agents with low-latency voice interactions, speech-to-text, and text-to-speech capabilities. It supports multilingual conversations, customizable voices, and seamless integration with various AI models and tools.
+  subgraph ExternalAI["AI & Voice Infrastructure"]
+    VapiCloud["Vapi Orchestrator (Deepgram Nova-3 STT + ElevenLabs TTS)"]
+    OpenAILLM["OpenAI gpt-4o-mini (Tutoring + Zod Structured Insights)"]
+    OpenAIEmbed["OpenAI text-embedding-3-small (1536-dim Embeddings)"]
+  end
 
-* **[Zod](https://zod.dev/)** is a TypeScript-first schema validation library that provides a simple and expressive way to define and validate data structures. Zod ensures data integrity by catching errors early during development.
+  subgraph DataAuth["Data, Auth & Observability"]
+    Clerk["Clerk Auth & Billing Subscriptions"]
+    SupabaseDB["Supabase PostgreSQL + Row Level Security"]
+    PgVector["Supabase pgvector (HNSW Cosine Index)"]
+    Sentry["Sentry Error & Trace Monitoring"]
+  end
 
-## <a name="features">🔋 Features</a>
+  UI --> Clerk
+  UI --> Actions
+  VoiceSDK <-->|"Low-latency WebRTC Audio"| VapiCloud
+  VoiceSDK -->|"Client Tool Calls (render_diagram / render_equation)"| WB
+  KBUI --> DocAPI
+  SRSUI --> Actions
 
-👉 **AI Voice Agents**: Take tutoring sessions with voiced AIs specializing in the topics you want to get better at.
+  DocAPI -->|"Chunked Text"| OpenAIEmbed
+  OpenAIEmbed -->|"1536-dim Vectors"| PgVector
 
-👉 **Authentication**: Secure user sign-up and sign-in with Clerk; Google authentication and many more.
+  VapiCloud <-->|"Conversation Turns"| OpenAILLM
+  VapiCloud -->|"Server Tool Call (search_knowledge_base)"| WebhookAPI
+  VapiCloud -->|"end-of-call-report"| WebhookAPI
 
-👉 **Billing & Subscriptions**: Easily manage plans, upgrades, and payment details.
+  WebhookAPI -->|"match_document_chunks RPC"| PgVector
+  WebhookAPI -->|"Trigger Async Analysis"| InsightsAPI
+  InsightsAPI -->|"Zod Schema Parse"| OpenAILLM
+  InsightsAPI -->|"Persist Insights & Flashcards"| SupabaseDB
+  Actions --> SupabaseDB
+```
 
-👉 **Bookmarks and Session History**: Let users organise their learning by bookmarking tutors.
+---
 
-👉 **Code Reusability**: Leverage reusable components and a modular codebase for efficient development.
+## 🎙️ Voice Session & AI Insights Pipeline
 
-👉 **Create a Tutor**: Create your own AI tutors, choosing a subject, topic, and style of conversation.
+```mermaid
+sequenceDiagram
+  autonumber
+  actor Student
+  participant Browser as CompanionComponent (Browser)
+  participant Vapi as Vapi Voice Cloud
+  participant Webhook as /api/vapi/webhook
+  participant Insights as /api/ai/insights
+  participant OpenAI as OpenAI API
+  participant DB as Supabase (PostgreSQL + pgvector)
 
-👉 **Cross-Device Compatibility**: Fully responsive design that works seamlessly across all devices.
+  Student->>Browser: Click "Start Session"
+  Browser->>Vapi: vapi.start(assistant, variableValues)
+  Vapi-->>Browser: call-start + callId
+  Browser->>DB: addToSessionHistory(status = "in_progress")
 
-👉 **Database Integration**: Uses Supabase for real-time data handling and storage needs.
+  loop Real-Time Voice & Multi-Modal Tutoring
+    Student->>Vapi: Speaks question
+    Vapi-->>Browser: Streaming partial & final transcripts
+    alt Student asks about uploaded PDF notes
+      Vapi->>Webhook: tool-calls (search_knowledge_base)
+      Webhook->>OpenAI: Embed query (text-embedding-3-small)
+      Webhook->>DB: RPC match_document_chunks (HNSW cosine similarity)
+      DB-->>Webhook: Top-K relevant document chunks
+      Webhook-->>Vapi: Grounded context
+    else Concept benefits from visual explanation
+      Vapi-->>Browser: Client tool-call (render_diagram / render_equation)
+      Browser->>Browser: Render live Mermaid SVG or KaTeX formula on Whiteboard
+    end
+    Vapi-->>Student: Low-latency ElevenLabs voice response
+  end
 
-👉 **Modern UI/UX**: Clean, responsive design built with Tailwind CSS and shadcn/ui for a sleek user experience.
+  Student->>Browser: Click "End Session"
+  Vapi->>Webhook: end-of-call-report (transcript, duration, cost)
+  Webhook->>DB: Update session_history (status = "finalizing")
+  Webhook->>Insights: POST /api/ai/insights { callId }
+  Insights->>OpenAI: chat.completions.parse (Zod InsightsSchema)
+  OpenAI-->>Insights: { summary, key_concepts, flashcards, quiz }
+  Insights->>DB: Insert due flashcards + mark session status = "completed"
+```
 
-👉 **Scalable Tech Stack**: Built with Next.js for a fast, production-ready web application that scales seamlessly.
+---
 
-👉 **Search Functionality**: Find tutors quickly with robust filters and search bar.
+## 📄 RAG Knowledge Base Pipeline
 
-and many more, including code architecture and reusability.
+```mermaid
+flowchart LR
+  PDF["User PDF Upload"] --> Parse["unpdf Text Extraction"]
+  Parse --> Chunk["Sliding-Window Chunker (1000 chars, 200 overlap)"]
+  Chunk --> Embed["OpenAI text-embedding-3-small (1536 dims)"]
+  Embed --> Store["Supabase document_chunks (HNSW Vector Index)"]
+  Store --> Search["Live Vapi Tool Call: match_document_chunks()"]
+```
+
+---
+
+## 🗄️ Database Schema (ERD)
+
+```mermaid
+erDiagram
+  COMPANIONS ||--o{ SESSION_HISTORY : "hosts"
+  COMPANIONS ||--o{ BOOKMARKS : "bookmarked_in"
+  COMPANIONS ||--o{ COMPANION_RATINGS : "rated_in"
+  COMPANIONS ||--o{ FLASHCARDS : "sources"
+  COMPANIONS ||--o{ DOCUMENTS : "scopes"
+  SESSION_HISTORY ||--o{ FLASHCARDS : "generates"
+  SESSION_HISTORY ||--o{ QUIZ_ATTEMPTS : "evaluates"
+  DOCUMENTS ||--o{ DOCUMENT_CHUNKS : "contains"
+
+  COMPANIONS {
+    uuid id PK
+    text author
+    text name
+    text subject
+    text topic
+    text voice
+    text style
+    int duration
+    boolean is_public
+    text language
+    int session_count
+    numeric rating_avg
+  }
+
+  SESSION_HISTORY {
+    uuid id PK
+    uuid companion_id FK
+    text user_id
+    text status
+    text vapi_call_id
+    int duration_seconds
+    text transcript_source
+    jsonb insights
+    text insights_status
+  }
+
+  FLASHCARDS {
+    uuid id PK
+    text user_id
+    uuid session_id FK
+    uuid companion_id FK
+    text front
+    text back
+    real ease_factor
+    int interval_days
+    int repetitions
+    int lapses
+    timestamptz due_at
+  }
+
+  DOCUMENTS {
+    uuid id PK
+    text user_id
+    uuid companion_id FK
+    text name
+    int size_bytes
+    int chunk_count
+    text status
+  }
+
+  DOCUMENT_CHUNKS {
+    uuid id PK
+    uuid document_id FK
+    text user_id
+    int chunk_index
+    text content
+    vector_1536 embedding
+  }
+```
+
+---
+
+## ✨ Key Features
+
+- **🎙️ Real-Time Voice AI Companions**: Configurable voice tutors powered by Vapi, Deepgram Nova-3/Nova-2 speech-to-text, OpenAI `gpt-4o-mini`, and ElevenLabs voices with live partial-to-final transcript streaming.
+- **📐 Live Interactive Whiteboard**: Client-side Vapi function tools (`render_diagram` and `render_equation`) dynamically open a split-screen canvas rendering **Mermaid.js** diagrams and **KaTeX** equations during the conversation.
+- **📚 RAG Knowledge Base (`pgvector`)**: Upload PDF study notes in `/knowledge`. Documents are parsed server-side with `unpdf`, chunked with sliding-window overlap, embedded with `text-embedding-3-small`, indexed with an HNSW cosine index, and queried mid-call via `search_knowledge_base`.
+- **🧠 SuperMemo SM-2 Spaced Repetition**: Post-call transcripts are analyzed with Zod structured outputs to generate flashcards. Review due cards at `/review` with Anki-style grade buttons (`Again`, `Hard`, `Good`, `Easy`), live next-interval previews, and instant keyboard shortcuts (`Space`, `1`–`4`).
+- **🏆 Deterministic Gamification Engine**: XP, level progression, daily/longest study streaks, and 10 achievement badges on `/my-journey` are computed as a pure function over source-of-truth session, quiz, and flashcard records—preventing state drift and enabling fast unit testing.
+- **🎨 Design-Engineered UI**: Built with custom cubic-bezier easing curves, GPU-accelerated transitions, capability-gated hover states (`@media (hover: hover) and (pointer: fine)`), `prefers-reduced-motion` support, and mobile-native viewport handling (`100dvh`, safe-area insets, zero tap-highlight flash).
+
+---
+
+## ⚙️ Tech Stack
+
+| Layer | Technology |
+| :--- | :--- |
+| **Framework** | Next.js 15.3 (App Router, Server Actions, Turbopack), React 19, TypeScript 5 |
+| **Styling & Motion** | Tailwind CSS v4, Radix UI / shadcn/ui, Lucide Icons, Lottie, Custom CSS Easing Tokens |
+| **Voice & AI** | Vapi Web SDK (`@vapi-ai/web`), OpenAI SDK v7 (`gpt-4o-mini`, `text-embedding-3-small`), Deepgram, ElevenLabs |
+| **Visual Rendering** | Mermaid.js v12 (Diagrams), KaTeX (LaTeX Math Rendering) |
+| **Database & Vector Search** | Supabase PostgreSQL, `pgvector` (HNSW Cosine Index), Row Level Security (RLS) |
+| **Auth & Billing** | Clerk (`@clerk/nextjs`) Authentication & Subscription Plan Gating |
+| **Observability & Testing** | Sentry (`@sentry/nextjs`), Vitest (Unit Testing) |
+
+---
+
+## 🚀 Local Setup & Environment Variables
+
+### 1. Clone and install dependencies
+
+```bash
+git clone https://github.com/ishan1603/NeuraNest.git
+cd NeuraNest
+npm install
+```
+
+### 2. Run Supabase migrations
+
+In your Supabase project's **SQL Editor**, run the migrations in order:
+1. `supabase/migrations/0001_base_schema.sql`
+2. `supabase/migrations/0002_v2_platform.sql`
+
+### 3. Configure `.env.local`
+
+Create a `.env.local` file in the project root:
+
+```env
+# Clerk Authentication
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/
+
+# Supabase (Database + pgvector)
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+
+# Vapi Voice AI
+NEXT_PUBLIC_VAPI_PUBLIC_KEY=your_vapi_public_key
+
+# OpenAI (Structured Insights + Embeddings)
+OPENAI_API_KEY=sk-proj-...
+
+# Public App URL (for Vapi Webhooks)
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+### 4. Start the development server
+
+```bash
+npm run dev
+```
+
+---
+
+## 🧪 Testing & Verification
+
+```bash
+# Run unit tests (SM-2 Spaced Repetition, Gamification Engine, Plan Quotas)
+npx vitest run
+
+# Type-check and lint
+npx tsc --noEmit
+npm run lint
+
+# Production build
+npm run build
+```

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { reviewCard, formatInterval } from '@/lib/srs';
+import { reviewCard, formatInterval, ReviewResult } from '@/lib/srs';
 
 describe('reviewCard', () => {
   const now = new Date('2024-01-01T12:00:00Z');
@@ -34,12 +34,12 @@ describe('formatInterval', () => {
   const now = new Date('2024-01-01T12:00:00Z');
   
   it('formats short intervals in minutes', () => {
-    const res = { dueAt: new Date(now.getTime() + 15 * 60 * 1000) } as any;
+    const res = { dueAt: new Date(now.getTime() + 15 * 60 * 1000) } as ReviewResult;
     expect(formatInterval(res, now)).toBe('15m');
   });
 
   it('formats medium intervals in days', () => {
-    const res = { dueAt: new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000) } as any;
+    const res = { dueAt: new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000) } as ReviewResult;
     expect(formatInterval(res, now)).toBe('3d');
   });
 });

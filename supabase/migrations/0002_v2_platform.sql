@@ -163,7 +163,7 @@ create index if not exists document_chunks_embedding_idx
 -- user. The service role (webhooks) must pass p_user_id explicitly.
 create or replace function public.match_document_chunks(
   query_embedding extensions.vector(1536),
-  p_companion_id  uuid,
+  p_companion_id  uuid default null,
   match_count     integer default 5,
   p_user_id       text default null
 )
@@ -178,7 +178,7 @@ as $$
          1 - (c.embedding <=> query_embedding) as similarity
   from public.document_chunks c
   join public.documents d on d.id = c.document_id
-  where c.companion_id = p_companion_id
+  where (p_companion_id is null or c.companion_id = p_companion_id or c.companion_id is null)
     and c.user_id = coalesce(p_user_id, auth.jwt() ->> 'sub')
   order by c.embedding <=> query_embedding
   limit least(match_count, 20);
