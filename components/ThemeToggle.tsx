@@ -14,12 +14,16 @@ export function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <button className="flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-800">
+      <button
+        type="button"
+        aria-label="Toggle theme"
+        className="flex size-9 items-center justify-center rounded-xl border-2 border-[var(--border-ink)] bg-card p-2 shadow-[2px_2px_0_var(--ink-shadow)]"
+      >
         <Image
           src="/icons/moon.svg"
           alt="Loading theme"
-          width={24}
-          height={24}
+          width={18}
+          height={18}
           className="dark:invert"
         />
       </button>
@@ -28,15 +32,16 @@ export function ThemeToggle() {
 
   return (
     <button
+      type="button"
       onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-      className="flex cursor-pointer items-center justify-center rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+      className="flex size-9 cursor-pointer items-center justify-center rounded-xl border-2 border-[var(--border-ink)] bg-card p-2 shadow-[2px_2px_0_var(--ink-shadow)] hover:bg-[#ffe156] dark:hover:bg-[#2c2823]"
       aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
     >
       <Image
         src={theme === 'dark' ? '/icons/sun.svg' : '/icons/moon.svg'}
         alt={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-        width={24}
-        height={24}
+        width={18}
+        height={18}
         className={theme === 'dark' ? 'invert' : ''}
       />
     </button>

@@ -2,12 +2,12 @@ export const subjects = ['maths', 'language', 'science', 'history', 'coding', 'e
 export type SubjectName = (typeof subjects)[number];
 
 export const subjectsColors: Record<SubjectName, string> = {
-  science: '#E5D0FF',
-  maths: '#FFDA6E',
-  language: '#BDE7FF',
-  coding: '#FFC8E4',
-  history: '#FFECC8',
-  economics: '#C8FFDF',
+  science: '#DCD0FF',
+  maths: '#FFE156',
+  language: '#A8D8FF',
+  coding: '#F7B7D2',
+  history: '#FFE3B3',
+  economics: '#B8F2D0',
 };
 
 /** ElevenLabs voice ids, keyed by voice gender then conversation style. */

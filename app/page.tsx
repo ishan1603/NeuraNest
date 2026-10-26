@@ -14,7 +14,6 @@ import {
   GitBranch,
   Mic,
   Plus,
-  Sparkles,
   Trophy,
 } from 'lucide-react';
 import React from 'react';
@@ -27,135 +26,226 @@ const Page = async () => {
 
   return (
     <main>
-      {/* Big 3D Hero Stage */}
-      <section className="relative overflow-hidden rounded-3xl border-2 border-border bg-card p-7 shadow-sm md:p-10">
-        <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-12">
-          <div className="space-y-5 lg:col-span-7">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="inline-flex items-center gap-2 rounded-xl border-2 border-primary/40 bg-primary/10 px-3.5 py-1.5 font-pixel text-[10px] text-primary">
-                <Sparkles className="h-3.5 w-3.5" />
-                <span>STAGE 01 // VOICE + 3D LEARNING STUDIO</span>
-              </span>
-              <span className="rounded-xl border-2 border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 font-pixel text-[10px] text-emerald-600 dark:text-emerald-400">
-                GEMINI 2.5 FLASH + PGVECTOR
+      {/* NothingOnPurpose-Inspired Editorial Notebook Hero */}
+      <section className="relative pt-2 pb-6 md:pt-6 md:pb-10">
+        <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-12 lg:gap-8">
+          {/* Left Column: Handwritten Headline, Highlighter Pill, Wavy Red Underline & Tactile Buttons */}
+          <div className="space-y-6 lg:col-span-6">
+            {/* Eyebrow Note */}
+            <div className="inline-flex items-center gap-2.5">
+              <span
+                aria-hidden="true"
+                className="inline-block size-2.5 rounded-full border border-[#191816] bg-[#d94e4e]"
+              />
+              <span className="font-hand text-2xl font-bold text-muted-foreground">
+                Interactive AI voice tutoring &amp; live whiteboard studio
               </span>
             </div>
 
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-[2.85rem] lg:leading-[1.1]">
-              Level up in any subject with{' '}
-              <span className="bg-gradient-to-r from-primary via-amber-500 to-indigo-500 bg-clip-text text-transparent">
-                live AI voice tutors
-              </span>{' '}
-              & interactive whiteboards.
+            {/* Big Handwritten Display Stack */}
+            <h1 className="font-hand text-6xl leading-[0.94] font-bold tracking-tight sm:text-7xl lg:text-[5.2rem]">
+              <span className="block">
+                Learn{' '}
+                <span className="inline-block -rotate-1 rounded-2xl border-2 border-[#191816] bg-[#ffe156] px-4 py-0.5 text-[#191816] shadow-[4px_4px_0_#191816]">
+                  anything.
+                </span>
+              </span>
+              <span className="mt-1 block">Keep the</span>
+              <span className="relative mt-0.5 inline-block">
+                <span>mastery.</span>
+                {/* Hand-drawn red ink wavy underline SVG */}
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 240 18"
+                  fill="none"
+                  className="mt-1 h-4 w-full text-[var(--red-ink)]"
+                >
+                  <path
+                    d="M3 11C28 3 47 16 74 9C101 2 122 16 149 9C176 2 198 15 237 7"
+                    stroke="currentColor"
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
             </h1>
 
-            <p className="max-w-xl text-sm leading-relaxed text-muted-foreground md:text-base">
-              Talk naturally with specialized AI companions that cite your uploaded PDFs with
-              real-time vector proof, draw live Mermaid & KaTeX diagrams mid-lecture, and turn every
-              session into SuperMemo SM-2 flashcards, quizzes, and XP streaks.
+            {/* Editorial Description */}
+            <p className="max-w-lg text-base leading-relaxed text-muted-foreground sm:text-[1.05rem]">
+              Talk naturally with specialized AI voice companions that sketch{' '}
+              <strong className="font-semibold text-foreground">
+                topic-specific Mermaid &amp; KaTeX diagrams
+              </strong>{' '}
+              as they teach, cite your{' '}
+              <strong className="font-semibold text-foreground">uploaded PDFs</strong> with live
+              vector proof, and turn every session into{' '}
+              <strong className="font-semibold text-foreground">SM-2 flashcards</strong>.
             </p>
 
-            <div className="flex flex-wrap items-center gap-3 pt-1">
-              <Link href="/companions/new" className="btn-primary px-6 py-3.5 text-sm">
-                <Plus className="h-4 w-4" />
-                <span>Build AI Companion</span>
+            {/* Typewriter Feature Checklist */}
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 font-mono text-xs font-bold tracking-wider text-muted-foreground uppercase">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="text-foreground">✓</span> LIVE WEBRTC VOICE
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="text-foreground">✓</span> CITES YOUR PDFS
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="text-foreground">✓</span> LIVE WHITEBOARD
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="text-foreground">✓</span> SM-2 FLASHCARDS
+              </span>
+            </div>
+
+            {/* Hand-Inked Offset CTA Buttons */}
+            <div className="flex flex-wrap items-center gap-3.5 pt-2">
+              <Link
+                href="/companions/new"
+                className="ink-button-dark inline-flex items-center gap-2.5 rounded-xl px-6 py-3.5 text-sm font-bold"
+              >
+                <span>Build Voice Tutor</span>
+                <span aria-hidden="true">→</span>
               </Link>
+
               <Link
                 href="/knowledge"
-                className="inline-flex items-center gap-2 rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-bold transition-colors hover:border-primary/50 hover:bg-accent"
+                className="ink-button-pink inline-flex items-center gap-2 rounded-xl px-5 py-3.5 text-sm font-bold"
               >
-                <FileText className="h-4 w-4 text-primary" />
                 <span>Upload PDF Notes</span>
+                <span aria-hidden="true">📄</span>
               </Link>
+
               <Link
                 href="/review"
-                className="inline-flex items-center gap-2 rounded-xl border-2 border-border bg-background px-4 py-3 text-sm font-bold transition-colors hover:border-primary/50 hover:bg-accent"
+                className="ink-button-cream inline-flex items-center gap-2 rounded-xl px-4 py-3.5 text-sm font-bold"
               >
-                <BrainCircuit className="h-4 w-4 text-primary" />
-                <span>SM-2 Flashcards</span>
+                <BrainCircuit className="h-4 w-4" />
+                <span>SM-2 Review</span>
               </Link>
             </div>
 
-            {/* 4 Game-Style Quest Pillars */}
-            <div className="grid grid-cols-2 gap-3 pt-2 sm:grid-cols-4">
-              <Link
-                href="/companions"
-                className="group flex flex-col gap-1.5 rounded-2xl border-2 border-border bg-background/80 p-3.5 transition-all hover:-translate-y-0.5 hover:border-primary"
+            {/* Handwritten Scroll Cue with Curved Pen Arrow */}
+            <div className="flex items-center gap-3 pt-2 text-muted-foreground">
+              <svg
+                aria-hidden="true"
+                width="34"
+                height="34"
+                viewBox="0 0 42 42"
+                fill="none"
+                className="shrink-0 text-foreground/75"
               >
-                <div className="flex items-center justify-between">
-                  <Mic className="h-4 w-4 text-primary" />
-                  <span className="font-pixel text-[9px] text-muted-foreground">01</span>
-                </div>
-                <p className="text-xs font-bold">Voice Tutors</p>
-                <p className="text-[11px] text-muted-foreground">Low-latency WebRTC</p>
-              </Link>
-
-              <Link
-                href="/companions"
-                className="group flex flex-col gap-1.5 rounded-2xl border-2 border-border bg-background/80 p-3.5 transition-all hover:-translate-y-0.5 hover:border-emerald-500"
-              >
-                <div className="flex items-center justify-between">
-                  <GitBranch className="h-4 w-4 text-emerald-500" />
-                  <span className="font-pixel text-[9px] text-muted-foreground">02</span>
-                </div>
-                <p className="text-xs font-bold">AI Whiteboard</p>
-                <p className="text-[11px] text-muted-foreground">Live Mermaid & KaTeX</p>
-              </Link>
-
-              <Link
-                href="/knowledge"
-                className="group flex flex-col gap-1.5 rounded-2xl border-2 border-border bg-background/80 p-3.5 transition-all hover:-translate-y-0.5 hover:border-amber-500"
-              >
-                <div className="flex items-center justify-between">
-                  <FileText className="h-4 w-4 text-amber-500" />
-                  <span className="font-pixel text-[9px] text-muted-foreground">03</span>
-                </div>
-                <p className="text-xs font-bold">PDF Grounding</p>
-                <p className="text-[11px] text-muted-foreground">1536-dim pgvector proof</p>
-              </Link>
-
-              <Link
-                href="/my-journey"
-                className="group flex flex-col gap-1.5 rounded-2xl border-2 border-border bg-background/80 p-3.5 transition-all hover:-translate-y-0.5 hover:border-indigo-500"
-              >
-                <div className="flex items-center justify-between">
-                  <Trophy className="h-4 w-4 text-indigo-500" />
-                  <span className="font-pixel text-[9px] text-muted-foreground">04</span>
-                </div>
-                <p className="text-xs font-bold">XP & Quests</p>
-                <p className="text-[11px] text-muted-foreground">SM-2 & 10 badges</p>
-              </Link>
+                <path
+                  d="M8 6C6 18 14 29 30 31M30 31L23 25M30 31L24 37"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span className="font-hand text-2xl">
+                Pick a companion below or inspect a live lesson receipt
+              </span>
             </div>
           </div>
 
-          {/* Right Column: Interactive 3D Holo-Cube & Orbiting HUD */}
-          <div className="lg:col-span-5">
+          {/* Right Column: Tactile Official Lesson Dossier / Certificate */}
+          <div className="lg:col-span-6">
             <Hero3DScene />
           </div>
         </div>
+
+        {/* 4 Stationery Sticker Pillars */}
+        <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Link
+            href="/companions"
+            className="ink-card group flex items-start justify-between gap-3 rounded-2xl p-4 transition-transform duration-150 ease-[var(--ease-out)] hover:-translate-y-0.5"
+          >
+            <div className="space-y-1">
+              <span className="inline-block rounded-md border border-[#191816] bg-[#ffe156] px-2 py-0.5 font-mono text-[10px] font-bold text-[#191816]">
+                01 // VOICE
+              </span>
+              <p className="pt-1 text-base font-bold">Coalesced Transcripts</p>
+              <p className="text-xs text-muted-foreground">
+                Natural turn-taking with zero duplicate lines or pause splits.
+              </p>
+            </div>
+            <Mic className="mt-1 h-5 w-5 shrink-0" />
+          </Link>
+
+          <Link
+            href="/companions"
+            className="ink-card group flex items-start justify-between gap-3 rounded-2xl p-4 transition-transform duration-150 ease-[var(--ease-out)] hover:-translate-y-0.5"
+          >
+            <div className="space-y-1">
+              <span className="inline-block rounded-md border border-[#191816] bg-[#a8d8ff] px-2 py-0.5 font-mono text-[10px] font-bold text-[#191816]">
+                02 // BOARD
+              </span>
+              <p className="pt-1 text-base font-bold">Topic-Specific Diagrams</p>
+              <p className="text-xs text-muted-foreground">
+                Live Mermaid flowcharts + numeric-only KaTeX formulas.
+              </p>
+            </div>
+            <GitBranch className="mt-1 h-5 w-5 shrink-0" />
+          </Link>
+
+          <Link
+            href="/knowledge"
+            className="ink-card group flex items-start justify-between gap-3 rounded-2xl p-4 transition-transform duration-150 ease-[var(--ease-out)] hover:-translate-y-0.5"
+          >
+            <div className="space-y-1">
+              <span className="inline-block rounded-md border border-[#191816] bg-[#f7b7d2] px-2 py-0.5 font-mono text-[10px] font-bold text-[#191816]">
+                03 // RAG PDF
+              </span>
+              <p className="pt-1 text-base font-bold">Verified PDF Citations</p>
+              <p className="text-xs text-muted-foreground">
+                Attach any PDF &amp; inspect the exact matched chunks live.
+              </p>
+            </div>
+            <FileText className="mt-1 h-5 w-5 shrink-0" />
+          </Link>
+
+          <Link
+            href="/my-journey"
+            className="ink-card group flex items-start justify-between gap-3 rounded-2xl p-4 transition-transform duration-150 ease-[var(--ease-out)] hover:-translate-y-0.5"
+          >
+            <div className="space-y-1">
+              <span className="inline-block rounded-md border border-[#191816] bg-[#b8f2d0] px-2 py-0.5 font-mono text-[10px] font-bold text-[#191816]">
+                04 // MASTERY
+              </span>
+              <p className="pt-1 text-base font-bold">SM-2 &amp; XP Streaks</p>
+              <p className="text-xs text-muted-foreground">
+                Spaced-repetition flashcards, post-session quizzes &amp; badges.
+              </p>
+            </div>
+            <Trophy className="mt-1 h-5 w-5 shrink-0" />
+          </Link>
+        </div>
       </section>
 
-      {/* Popular Companions */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
+      {/* Featured AI Companions */}
+      <section className="space-y-5">
+        <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <span className="font-pixel text-[10px] text-primary uppercase">
-              SELECT YOUR TUTOR
+            <span className="font-mono text-xs font-bold tracking-wider text-muted-foreground uppercase">
+              CATALOG // READY TO LAUNCH
             </span>
-            <h2 className="text-2xl font-bold tracking-tight">Featured AI Companions</h2>
+            <h2 className="font-hand text-4xl font-bold tracking-tight sm:text-5xl">
+              Featured Voice Companions
+            </h2>
           </div>
           <Link
             href="/companions"
-            className="inline-flex items-center gap-1.5 rounded-xl border-2 border-border bg-card px-3.5 py-2 text-xs font-bold hover:border-primary"
+            className="ink-button-cream inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold"
           >
-            <BookOpen className="h-4 w-4 text-primary" />
-            <span>Explore Library</span>
+            <BookOpen className="h-4 w-4" />
+            <span>Browse Full Library →</span>
           </Link>
         </div>
 
         {companions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-border bg-card/50 p-10 text-center">
-            <p className="text-base font-bold">No companions created yet</p>
+          <div className="ink-card flex flex-col items-center justify-center gap-3 rounded-2xl p-10 text-center">
+            <p className="font-hand text-3xl font-bold">No companions created yet</p>
             <p className="max-w-md text-sm text-muted-foreground">
               Build your first custom AI voice tutor in seconds and start an interactive session.
             </p>

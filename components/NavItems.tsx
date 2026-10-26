@@ -29,10 +29,10 @@ const NavItems = ({ onItemClick }: NavItemsProps) => {
             key={label}
             onClick={onItemClick}
             className={cn(
-              'rounded-full px-3.5 py-1.5 text-base font-medium transition-[color,background-color] duration-150 md:text-sm',
+              'rounded-xl px-3.5 py-1.5 text-base font-semibold transition-[color,background-color,transform] duration-150 ease-[var(--ease-out)] md:text-sm',
               isActive
-                ? 'bg-primary/12 text-primary font-semibold'
-                : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'
+                ? 'border-2 border-[#191816] bg-[#ffe156] font-bold text-[#191816] shadow-[2px_2px_0_#191816]'
+                : 'text-muted-foreground hover:text-foreground hover:bg-secondary/70'
             )}
           >
             {label}
