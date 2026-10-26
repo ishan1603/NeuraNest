@@ -269,8 +269,19 @@ const CompanionComponent = ({
     };
 
     const onError = (error: unknown) => {
-      const err = error as { message?: string; error?: { message?: string | string[] } };
-      console.error('Vapi Error:', err);
+      const err = error as {
+        type?: string;
+        message?: string;
+        error?: { message?: string | string[] };
+      };
+      if (
+        err?.type === 'audio-processing-setup-error' ||
+        err?.type === 'audio-observer-setup-error' ||
+        err?.type === 'audio-processor-recovery-error'
+      ) {
+        return;
+      }
+      console.warn('Vapi Error:', err);
       const detail = Array.isArray(err?.error?.message)
         ? err.error.message[0]
         : err?.error?.message || err?.message || 'Voice connection ended';
