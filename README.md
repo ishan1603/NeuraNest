@@ -6,76 +6,106 @@
     <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
     <img src="https://img.shields.io/badge/Supabase_pgvector-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase" />
     <img src="https://img.shields.io/badge/Vapi_Voice_AI-10B981?style=for-the-badge&logoColor=white" alt="Vapi" />
-    <img src="https://img.shields.io/badge/Google_Gemini-8E75B2?style=for-the-badge&logo=googlegemini&logoColor=white" alt="Google Gemini" />
+    <img src="https://img.shields.io/badge/Google_Gemini_2.5-8E75B2?style=for-the-badge&logo=googlegemini&logoColor=white" alt="Google Gemini" />
     <img src="https://img.shields.io/badge/Clerk-6C47FF?style=for-the-badge&logo=clerk&logoColor=white" alt="Clerk" />
     <img src="https://img.shields.io/badge/Tailwind_CSS_v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Tailwind CSS" />
   </div>
 
   <br />
 
-  <h1>NeuraNest — Real-Time AI Voice Tutoring & Adaptive Learning Platform</h1>
+  <h1>NeuraNest: Real-Time AI Voice Tutoring and Live Whiteboard Studio</h1>
 
   <p align="center">
-    An interactive AI learning platform combining <strong>low-latency voice companions</strong>, <strong>RAG document grounding (pgvector)</strong>, a <strong>live Mermaid & KaTeX visual whiteboard</strong>, <strong>SuperMemo SM-2 spaced repetition flashcards</strong>, and <strong>deterministic gamification analytics</strong>.
+    An interactive AI learning platform combining <strong>low-latency WebRTC voice companions</strong>, <strong>verified RAG document grounding (pgvector)</strong>, a <strong>topic-specific Mermaid and KaTeX live whiteboard</strong>, <strong>SuperMemo SM-2 spaced repetition flashcards</strong>, and <strong>deterministic gamification analytics</strong>.
   </p>
 
-  <img src="public/images/Screenshot 2025-07-15 201156.png" alt="NeuraNest Platform Preview" />
 </div>
 
 ---
 
-## 📋 Table of Contents
+## Interface Gallery
 
-1. [Overview](#-overview)
-2. [System Architecture](#-system-architecture)
-3. [Voice Session & AI Insights Pipeline](#-voice-session--ai-insights-pipeline)
-4. [RAG Knowledge Base Pipeline](#-rag-knowledge-base-pipeline)
-5. [Database Schema (ERD)](#-database-schema-erd)
-6. [Key Features](#-key-features)
-7. [Tech Stack](#-tech-stack)
-8. [Local Setup & Environment Variables](#-local-setup--environment-variables)
-9. [Testing & Verification](#-testing--verification)
+### Editorial Notebook Hero and Interactive Lesson Dossier (Light Mode)
+![NeuraNest Light Mode Hero](public/images/screenshots/hero-light.png)
 
----
+### Warm Espresso Ink Theme and Live Subject Dossier Switcher (Dark Mode)
+![NeuraNest Dark Mode Hero](public/images/screenshots/hero-dark.png)
 
-## 🧠 Overview
+### Studio Pillars, Featured Voice Companions, and Session Ledger
+![NeuraNest Dashboard Sections](public/images/screenshots/dashboard-sections.png)
 
-**NeuraNest** transforms passive self-study into an active, multi-modal tutoring experience. Students create or pick specialized AI voice companions across subjects (`Maths`, `Science`, `Coding`, `Language`, `History`, `Economics`), upload their own PDF lecture notes into a vector knowledge base, and converse naturally in real time.
-
-During a live voice session, the AI tutor can:
-- **Search uploaded study notes** via semantic vector similarity (`pgvector` + Google `gemini-embedding-001`) to ground answers in the student's curriculum.
-- **Draw live visual explanations** on an interactive split-screen whiteboard using **Mermaid.js** flowcharts/diagrams and **KaTeX** mathematical equations.
-- **Automatically synthesize post-session learning artifacts** (structured summary, key concepts, multiple-choice quizzes, and **SM-2 spaced repetition flashcards**) when the call ends.
+### Companion Marketplace and Subject Filters
+![NeuraNest Companion Library](public/images/screenshots/companions-library.png)
 
 ---
 
-## 🏗️ System Architecture
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Key Features](#key-features)
+3. [System Architecture](#system-architecture)
+4. [Voice Session, Live Whiteboard, and Insights Pipeline](#voice-session-live-whiteboard-and-insights-pipeline)
+5. [RAG Knowledge Base and Citation Proof Pipeline](#rag-knowledge-base-and-citation-proof-pipeline)
+6. [Database Schema (ERD)](#database-schema-erd)
+7. [Tech Stack](#tech-stack)
+8. [Local Setup and Environment Variables](#local-setup-and-environment-variables)
+9. [Production Deployment Guide (Vercel)](#production-deployment-guide-vercel)
+10. [Testing and Verification](#testing-and-verification)
+
+---
+
+## Overview
+
+**NeuraNest** turns passive self-study into an active, multi-modal voice tutoring studio. Learners create or select specialized AI voice companions across subjects (`Maths`, `Science`, `Coding`, `Language`, `History`, `Economics`), attach their own PDF lecture notes from a vector knowledge base, and converse naturally over low-latency WebRTC audio.
+
+During a live voice session, the platform provides:
+- **Turn-Coalesced, Deduplicated Live Transcripts**: Consecutive phrases from the same speaker are merged into a single conversational turn so natural speech pauses never fragment a sentence into multiple transcript lines.
+- **Verified PDF Grounding and Live Citation Proof**: Learners select which uploaded PDFs to attach before starting a call. Whenever the student speaks, semantic vector search (`pgvector` + Google `gemini-embedding-001`) retrieves the top matching chunks and displays them inside an expandable **Citation Proof Drawer** with similarity scores.
+- **Topic-Specific Live Whiteboard**: Powered by Google `gemini-2.5-flash` (`/api/ai/visual`), the live board synthesizes real-time **Mermaid.js** flowcharts tailored to the exact concepts discussed. **KaTeX** mathematical formulas are rendered strictly for numeric subjects (`Maths`, `Science`, `Coding`, `Economics`) and automatically suppressed for humanities subjects (`History`, `Language`).
+- **Automated Post-Session Synthesis**: When a session concludes, Gemini generates structured study notes, key concepts, multiple-choice quizzes, and **SuperMemo SM-2 flashcards** ready for spaced-repetition review.
+
+---
+
+## Key Features
+
+- **Real-Time WebRTC Voice Companions**: Configurable AI tutors powered by `@vapi-ai/web` v3, Deepgram Nova-3/Nova-2 speech-to-text, Google `gemini-2.5-flash`, and ElevenLabs voices with sub-second response latency.
+- **Dynamic AI Whiteboard (`/api/ai/visual`)**: Synthesizes live Mermaid architecture/process diagrams from the active conversation transcript alongside Vapi client tool calls (`render_diagram` and `render_equation`), with subject-aware KaTeX math gating (`isNumericSubject`).
+- **RAG Knowledge Base with Vector Proof (`/knowledge`)**: Server-side PDF text extraction via `unpdf`, adaptive sliding-window chunking that respects free-tier embedding quotas, `1536`-dimensional `gemini-embedding-001` vectors stored in Supabase `pgvector` with an HNSW cosine index, and in-call chunk citation verification.
+- **SuperMemo SM-2 Flashcard Studio (`/review`)**: Anki-style spaced repetition deck with four grading buttons (`Again`, `Hard`, `Good`, `Easy`), live next-interval previews, and keyboard shortcuts (`Space`, `1` to `4`).
+- **Deterministic Gamification Engine (`/my-journey`)**: XP, level progression, daily and longest study streaks, and 10 achievement badges computed as a pure function over session, quiz, and flashcard records.
+- **Zero-Lag Notebook Design System**: Crafted with `Caveat`, `Plus Jakarta Sans`, and `JetBrains Mono` on a warm ruled-notebook surface (`#F6F2E6` Light / `#141311` Dark). Animations follow Emil Kowalski's design engineering rules: composite-only `transform` and `opacity` transitions, custom `--ease-out: cubic-bezier(0.23, 1, 0.32, 1)` curves, zero `background-attachment: fixed` repaints, capability-gated hover lifts (`@media (hover: hover) and (pointer: fine)`), and full `prefers-reduced-motion` support.
+
+---
+
+## System Architecture
 
 ```mermaid
 flowchart TB
   subgraph Client["Client Layer (Next.js 15 App Router & React 19)"]
-    UI["Responsive UI + Dark Mode (Tailwind v4)"]
-    VoiceSDK["Vapi Web SDK (WebRTC Audio + Partial Transcripts)"]
-    WB["Live Whiteboard (Mermaid.js + KaTeX)"]
+    UI["Notebook UI + Light/Dark Theme (Tailwind v4)"]
+    VoiceSDK["Vapi Web SDK v3 (WebRTC Audio + Coalesced Transcripts)"]
+    WB["Live AI Whiteboard (Mermaid.js + Numeric-Gated KaTeX)"]
+    ProofUI["Live PDF Citation Proof Drawer"]
     SRSUI["SM-2 Flashcard Review Studio"]
     KBUI["PDF Knowledge Base Manager"]
   end
 
   subgraph EdgeServer["Next.js Server Actions & Route Handlers"]
     Actions["Server Actions (Companions, Flashcards, Gamification, Knowledge)"]
-    DocAPI["POST /api/documents/process (PDF -> Chunks -> Embeddings)"]
+    DocAPI["POST /api/documents/process (Adaptive PDF Chunker + Embeddings)"]
+    VisualAPI["POST /api/ai/visual (Live Topic Diagram & Formula Synthesis)"]
     WebhookAPI["POST /api/vapi/webhook (Call Lifecycle & RAG Tool Handler)"]
-    InsightsAPI["POST /api/ai/insights (Structured Output Synthesis)"]
+    InsightsAPI["POST /api/ai/insights (Post-Session Structured Synthesis)"]
   end
 
   subgraph ExternalAI["AI & Voice Infrastructure"]
     VapiCloud["Vapi Orchestrator (Deepgram Nova-3 STT + ElevenLabs TTS)"]
-    GeminiLLM["Google Gemini 2.5 Flash (Tutoring + Zod Structured Insights)"]
+    GeminiLLM["Google Gemini 2.5 Flash (Tutoring, Live Visuals & Insights)"]
     GeminiEmbed["Google gemini-embedding-001 (1536-dim Embeddings)"]
   end
 
   subgraph DataAuth["Data, Auth & Observability"]
-    Clerk["Clerk Auth & Billing Subscriptions"]
+    Clerk["Clerk Auth, Middleware & Plan Gating"]
     SupabaseDB["Supabase PostgreSQL + Row Level Security"]
     PgVector["Supabase pgvector (HNSW Cosine Index)"]
     Sentry["Sentry Error & Trace Monitoring"]
@@ -84,11 +114,13 @@ flowchart TB
   UI --> Clerk
   UI --> Actions
   VoiceSDK <-->|"Low-latency WebRTC Audio"| VapiCloud
-  VoiceSDK -->|"Client Tool Calls (render_diagram / render_equation)"| WB
+  VoiceSDK -->|"Turn Transcript Updates"| VisualAPI
+  VisualAPI -->|"Mermaid Diagram + KaTeX"| WB
+  VoiceSDK -->|"retrieveDocumentContext()"| ProofUI
   KBUI --> DocAPI
   SRSUI --> Actions
 
-  DocAPI -->|"Chunked Text"| GeminiEmbed
+  DocAPI -->|"Adaptive Chunks"| GeminiEmbed
   GeminiEmbed -->|"1536-dim Vectors"| PgVector
 
   VapiCloud <-->|"Conversation Turns"| GeminiLLM
@@ -97,72 +129,69 @@ flowchart TB
 
   WebhookAPI -->|"match_document_chunks RPC"| PgVector
   WebhookAPI -->|"Trigger Async Analysis"| InsightsAPI
-  InsightsAPI -->|"Zod Schema Parse"| GeminiLLM
+  InsightsAPI -->|"Zod Schema Validation"| GeminiLLM
   InsightsAPI -->|"Persist Insights & Flashcards"| SupabaseDB
   Actions --> SupabaseDB
 ```
 
 ---
 
-## 🎙️ Voice Session & AI Insights Pipeline
+## Voice Session, Live Whiteboard, and Insights Pipeline
 
 ```mermaid
 sequenceDiagram
   autonumber
   actor Student
   participant Browser as CompanionComponent (Browser)
+  participant Visual as /api/ai/visual
   participant Vapi as Vapi Voice Cloud
   participant Webhook as /api/vapi/webhook
   participant Insights as /api/ai/insights
-  participant Gemini as Google Gemini API
+  participant Gemini as Google Gemini 2.5 Flash
   participant DB as Supabase (PostgreSQL + pgvector)
 
-  Student->>Browser: Click "Start Session"
+  Student->>Browser: Select attached PDFs & click "Start Session"
   Browser->>Vapi: vapi.start(assistant, variableValues)
   Vapi-->>Browser: call-start + callId
   Browser->>DB: addToSessionHistory(status = "in_progress")
 
   loop Real-Time Voice & Multi-Modal Tutoring
     Student->>Vapi: Speaks question
-    Vapi-->>Browser: Streaming partial & final transcripts
-    alt Student asks about uploaded PDF notes
-      Vapi->>Webhook: tool-calls (search_knowledge_base)
-      Webhook->>Gemini: Embed query (gemini-embedding-001, 1536 dims)
-      Webhook->>DB: RPC match_document_chunks (HNSW cosine similarity)
-      DB-->>Webhook: Top-K relevant document chunks
-      Webhook-->>Vapi: Grounded context
-    else Concept benefits from visual explanation
-      Vapi-->>Browser: Client tool-call (render_diagram / render_equation)
-      Browser->>Browser: Render live Mermaid SVG or KaTeX formula on Whiteboard
-    end
+    Vapi-->>Browser: Streaming transcripts (coalesced & deduplicated per turn)
+    Browser->>DB: retrieveDocumentContext(query, selectedDocIds)
+    DB-->>Browser: Top-K matched PDF chunks + similarity % (shown in Proof Drawer)
+    Browser->>Visual: POST /api/ai/visual (recent transcript + subject)
+    Visual->>Gemini: Synthesize topic-specific Mermaid diagram (+ KaTeX if numeric subject)
+    Gemini-->>Visual: JSON { title, caption, diagram, formula }
+    Visual-->>Browser: Update Live Whiteboard
     Vapi-->>Student: Low-latency ElevenLabs voice response
   end
 
   Student->>Browser: Click "End Session"
-  Vapi->>Webhook: end-of-call-report (transcript, duration, cost)
+  Vapi->>Webhook: end-of-call-report (transcript, duration)
   Webhook->>DB: Update session_history (status = "finalizing")
   Webhook->>Insights: POST /api/ai/insights { callId }
-  Insights->>Gemini: chat.completions.parse (Zod InsightsSchema)
-  Gemini-->>Insights: { summary, key_concepts, flashcards, quiz }
-  Insights->>DB: Insert due flashcards + mark session status = "completed"
+  Insights->>Gemini: Generate structured insights (summary, concepts, quiz, flashcards)
+  Gemini-->>Insights: Validated JSON payload
+  Insights->>DB: Insert due SM-2 flashcards + mark session status = "completed"
 ```
 
 ---
 
-## 📄 RAG Knowledge Base Pipeline
+## RAG Knowledge Base and Citation Proof Pipeline
 
 ```mermaid
 flowchart LR
   PDF["User PDF Upload"] --> Parse["unpdf Text Extraction"]
-  Parse --> Chunk["Sliding-Window Chunker (1000 chars, 200 overlap)"]
-  Chunk --> Embed["Google gemini-embedding-001 (1536 dims)"]
+  Parse --> Chunk["Adaptive Sliding-Window Chunker (<= 45 chunks per PDF)"]
+  Chunk --> Embed["Google gemini-embedding-001 (1536 dims + Retry Backoff)"]
   Embed --> Store["Supabase document_chunks (HNSW Vector Index)"]
-  Store --> Search["Live Vapi Tool Call: match_document_chunks()"]
+  Store --> Verify["Live Session Proof Drawer: match_document_chunks()"]
 ```
 
 ---
 
-## 🗄️ Database Schema (ERD)
+## Database Schema (ERD)
 
 ```mermaid
 erDiagram
@@ -238,32 +267,21 @@ erDiagram
 
 ---
 
-## ✨ Key Features
-
-- **🎙️ Real-Time Voice AI Companions**: Configurable voice tutors powered by Vapi, Deepgram Nova-3/Nova-2 speech-to-text, Google `gemini-2.5-flash`, and ElevenLabs voices with live partial-to-final transcript streaming.
-- **📐 Live Interactive Whiteboard**: Client-side Vapi function tools (`render_diagram` and `render_equation`) dynamically open a split-screen canvas rendering **Mermaid.js** diagrams and **KaTeX** equations during the conversation.
-- **📚 RAG Knowledge Base (`pgvector`)**: Upload PDF study notes in `/knowledge`. Documents are parsed server-side with `unpdf`, chunked with sliding-window overlap, embedded with Google `gemini-embedding-001` (`1536` dimensions), indexed with an HNSW cosine index, and queried mid-call via `search_knowledge_base`.
-- **🧠 SuperMemo SM-2 Spaced Repetition**: Post-call transcripts are analyzed with Zod structured outputs to generate flashcards. Review due cards at `/review` with Anki-style grade buttons (`Again`, `Hard`, `Good`, `Easy`), live next-interval previews, and instant keyboard shortcuts (`Space`, `1`–`4`).
-- **🏆 Deterministic Gamification Engine**: XP, level progression, daily/longest study streaks, and 10 achievement badges on `/my-journey` are computed as a pure function over source-of-truth session, quiz, and flashcard records—preventing state drift and enabling fast unit testing.
-- **🎨 Design-Engineered UI**: Built with custom cubic-bezier easing curves, GPU-accelerated transitions, capability-gated hover states (`@media (hover: hover) and (pointer: fine)`), `prefers-reduced-motion` support, and mobile-native viewport handling (`100dvh`, safe-area insets, zero tap-highlight flash).
-
----
-
-## ⚙️ Tech Stack
+## Tech Stack
 
 | Layer | Technology |
 | :--- | :--- |
 | **Framework** | Next.js 15.3 (App Router, Server Actions, Turbopack), React 19, TypeScript 5 |
-| **Styling & Motion** | Tailwind CSS v4, Radix UI / shadcn/ui, Lucide Icons, Lottie, Custom CSS Easing Tokens |
-| **Voice & AI** | Vapi Web SDK (`@vapi-ai/web`), Google Gemini (`gemini-2.5-flash`, `gemini-embedding-001`), Deepgram, ElevenLabs |
-| **Visual Rendering** | Mermaid.js v12 (Diagrams), KaTeX (LaTeX Math Rendering) |
+| **Typography & Design** | Tailwind CSS v4, Caveat, Plus Jakarta Sans, JetBrains Mono, Radix UI / shadcn/ui |
+| **Voice & AI** | Vapi Web SDK (`@vapi-ai/web` v3.0.1), Google Gemini (`gemini-2.5-flash`, `gemini-embedding-001`), Deepgram, ElevenLabs |
+| **Visual Whiteboard** | Mermaid.js v11 (Flowcharts & Architecture Diagrams), KaTeX (Numeric-Gated LaTeX Math) |
 | **Database & Vector Search** | Supabase PostgreSQL, `pgvector` (HNSW Cosine Index), Row Level Security (RLS) |
-| **Auth & Billing** | Clerk (`@clerk/nextjs`) Authentication & Subscription Plan Gating |
+| **Authentication** | Clerk (`@clerk/nextjs`) Middleware Route Protection & Subscription Plan Gating |
 | **Observability & Testing** | Sentry (`@sentry/nextjs`), Vitest (Unit Testing) |
 
 ---
 
-## 🚀 Local Setup & Environment Variables
+## Local Setup and Environment Variables
 
 ### 1. Clone and install dependencies
 
@@ -275,7 +293,7 @@ npm install
 
 ### 2. Run Supabase migrations
 
-In your Supabase project's **SQL Editor**, run the migrations in order:
+In your Supabase project's **SQL Editor**, execute the migrations in order:
 1. `supabase/migrations/0001_base_schema.sql`
 2. `supabase/migrations/0002_v2_platform.sql`
 
@@ -289,21 +307,20 @@ NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
 NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
 NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
-NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/
-NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/
 
 # Supabase (Database + pgvector)
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
 
-# Vapi Voice AI
-NEXT_PUBLIC_VAPI_PUBLIC_KEY=your_vapi_public_key
+# Vapi Voice AI (Either variable name is supported)
+NEXT_PUBLIC_VAPI_WEB_TOKEN=your_vapi_public_web_token
+NEXT_PUBLIC_VAPI_PUBLIC_KEY=your_vapi_public_web_token
 
-# Google Gemini (Structured Insights + 1536-dim Embeddings)
+# Google Gemini API (Insights, Live Whiteboard Visuals, and 1536-dim Embeddings)
 GEMINI_API_KEY=AIzaSy...
 
-# Public App URL (for Vapi Webhooks)
+# Public App URL (Used by Vapi Server Webhooks)
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
@@ -315,7 +332,38 @@ npm run dev
 
 ---
 
-## 🧪 Testing & Verification
+## Production Deployment Guide (Vercel)
+
+### Step 1: Import Repository into Vercel
+1. Push your latest `main` branch to GitHub.
+2. Open the [Vercel Dashboard](https://vercel.com/new) and import `ishan1603/NeuraNest`.
+3. Note that `.npmrc` includes `legacy-peer-deps=true` in the repository root, so Vercel's `npm install` step automatically resolves `@vapi-ai/web@3.0.1` peer dependencies without custom install flags.
+
+### Step 2: Configure Vercel Environment Variables
+In **Vercel Project Settings -> Environment Variables**, add the following keys for **Production**, **Preview**, and **Development**:
+
+| Variable Name | Required | Description |
+| :--- | :--- | :--- |
+| `GEMINI_API_KEY` | Yes | Google AI Studio API key (`AIzaSy...`). Powers `/api/ai/insights`, `/api/ai/visual`, and `gemini-embedding-001` PDF vectorization. (Replaces any legacy `OPENAI_API_KEY`.) |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Yes | Clerk Publishable Key (`pk_live_...` or `pk_test_...`). |
+| `CLERK_SECRET_KEY` | Yes | Clerk Secret Key (`sk_live_...` or `sk_test_...`). |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | Yes | Set to `/sign-in`. |
+| `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | Yes | Set to `/sign-up`. |
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Your Supabase project URL (`https://<project-ref>.supabase.co`). |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase `anon` public key. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase `service_role` secret key (used server-side for PDF vector ingestion and webhook updates). |
+| `NEXT_PUBLIC_VAPI_WEB_TOKEN` | Yes | Your Vapi Public Key / Web Token from the Vapi Dashboard. |
+| `NEXT_PUBLIC_APP_URL` | Yes | Your production domain (for example, `https://neuranest.vercel.app`) with no trailing slash. |
+| `VAPI_WEBHOOK_SECRET` | Optional | Shared secret header if you enable webhook signature verification in Vapi. |
+
+### Step 3: Post-Deployment Checklist
+1. **Clerk Allowed Domains**: In the Clerk Dashboard, add your Vercel production domain (`https://your-domain.vercel.app`) to allowed origins/redirects.
+2. **Supabase JWT Template**: Ensure your Clerk `supabase` JWT template is active if using RLS policies tied to `auth.jwt() ->> 'sub'`.
+3. **Redeploy after Env Updates**: Anytime you add or change a `NEXT_PUBLIC_*` variable in Vercel, trigger a fresh deployment so Next.js inlines the updated public values at build time.
+
+---
+
+## Testing and Verification
 
 ```bash
 # Run unit tests (SM-2 Spaced Repetition, Gamification Engine, Plan Quotas)
@@ -325,6 +373,6 @@ npx vitest run
 npx tsc --noEmit
 npm run lint
 
-# Production build
+# Production build check
 npm run build
 ```

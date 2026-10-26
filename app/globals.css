@@ -311,7 +311,7 @@ button:not(:disabled):active,
     @apply rounded-full border border-[#191816] bg-[#191816] px-3 py-0.5 font-mono text-xs font-bold text-[#fffdf7] uppercase;
   }
   .companion-bookmark {
-    @apply flex size-9 cursor-pointer items-center justify-center rounded-full border-2 border-[#191816] bg-[#fffdf7] text-[#191816] shadow-[2px_2px_0_#191816];
+    @apply flex size-9 cursor-pointer items-center justify-center rounded-full border-2 border-[#191816] bg-[#191816] text-[#fffdf7] shadow-[2px_2px_0_rgba(25,24,22,0.35)];
   }
   .input {
     @apply !w-full rounded-xl !border-2 !border-border !bg-card focus-visible:!border-foreground focus-visible:!ring-0;
