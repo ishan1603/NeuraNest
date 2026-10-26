@@ -25,12 +25,18 @@ const getAdminSupabase = () =>
     process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy.supabase.co',
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-      'dummy_key'
+      'dummy_key',
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    }
   );
 
 export async function getDueFlashcards(): Promise<FlashcardRecord[]> {
   const { userId } = await auth();
-  if (!userId) throw new Error('Unauthorized');
+  if (!userId) return [];
 
   const supabase = getAdminSupabase();
   const now = new Date().toISOString();
@@ -41,13 +47,38 @@ export async function getDueFlashcards(): Promise<FlashcardRecord[]> {
     .eq('user_id', userId)
     .lte('due_at', now)
     .order('due_at', { ascending: true })
-    .limit(20);
+    .limit(30);
 
   if (error) {
     console.warn('Could not load flashcards:', error.message);
     return [];
   }
   return (data || []) as FlashcardRecord[];
+}
+
+export async function createFlashcard(
+  front: string,
+  back: string
+): Promise<FlashcardRecord> {
+  const { userId } = await auth();
+  if (!userId) throw new Error('Unauthorized');
+
+  const supabase = getAdminSupabase();
+  const { data, error } = await supabase
+    .from('flashcards')
+    .insert({
+      user_id: userId,
+      front: front.trim(),
+      back: back.trim(),
+      due_at: new Date().toISOString(),
+    })
+    .select('*')
+    .single();
+
+  if (error || !data) {
+    throw new Error(error?.message || 'Failed to create flashcard');
+  }
+  return data as FlashcardRecord;
 }
 
 export async function reviewFlashcard(cardId: string, grade: ReviewGrade) {
@@ -91,4 +122,28 @@ export async function reviewFlashcard(cardId: string, grade: ReviewGrade) {
   if (updateErr) throw new Error(updateErr.message);
 
   return nextSrs;
+}
+
+export async function submitQuizAttempt(
+  sessionId: string,
+  score: number,
+  total: number,
+  answers: number[]
+) {
+  const { userId } = await auth();
+  if (!userId) throw new Error('Unauthorized');
+
+  const supabase = getAdminSupabase();
+  const { error } = await supabase.from('quiz_attempts').insert({
+    user_id: userId,
+    session_id: sessionId,
+    score,
+    total,
+    answers,
+  });
+
+  if (error) {
+    console.warn('Quiz attempt insert warning:', error.message);
+  }
+  return { success: true };
 }

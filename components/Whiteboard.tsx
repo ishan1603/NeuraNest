@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import mermaid from 'mermaid';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { Sigma, GitBranch, X } from 'lucide-react';
@@ -21,6 +20,7 @@ export default function Whiteboard({ type, content, onClose }: WhiteboardProps) 
     const renderVisual = async () => {
       try {
         if (type === 'mermaid') {
+          const mermaid = (await import('mermaid')).default;
           mermaid.initialize({ startOnLoad: false, theme: 'default' });
           const { svg } = await mermaid.render('mermaid-svg-' + Date.now(), content);
           if (containerRef.current) {
@@ -66,7 +66,7 @@ export default function Whiteboard({ type, content, onClose }: WhiteboardProps) 
             type="button"
             onClick={onClose}
             aria-label="Close whiteboard"
-            className="rounded-lg p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+            className="cursor-pointer rounded-lg p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>

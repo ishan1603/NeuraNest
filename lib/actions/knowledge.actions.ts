@@ -21,12 +21,18 @@ const getAdminSupabase = () =>
     process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy.supabase.co',
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-      'dummy_key'
+      'dummy_key',
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    }
   );
 
 export async function getDocuments(): Promise<DocumentRecord[]> {
   const { userId } = await auth();
-  if (!userId) throw new Error('Unauthorized');
+  if (!userId) return [];
 
   const supabase = getAdminSupabase();
 

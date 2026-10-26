@@ -1,6 +1,14 @@
 import KnowledgeBaseManager from '@/components/KnowledgeBaseManager';
+import { getDocuments } from '@/lib/actions/knowledge.actions';
+import { auth } from '@clerk/nextjs/server';
+import { redirect } from 'next/navigation';
 
-export default function KnowledgePage() {
+export default async function KnowledgePage() {
+  const { userId } = await auth();
+  if (!userId) redirect('/sign-in');
+
+  const initialDocs = await getDocuments();
+
   return (
     <main>
       <section className="space-y-2">
@@ -10,7 +18,7 @@ export default function KnowledgePage() {
           your AI companion about your notes and it will perform real-time semantic vector search.
         </p>
       </section>
-      <KnowledgeBaseManager />
+      <KnowledgeBaseManager initialDocs={initialDocs} />
     </main>
   );
 }

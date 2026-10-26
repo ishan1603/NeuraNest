@@ -83,3 +83,15 @@ export function formatInterval(result: ReviewResult, now: Date = new Date()): st
   const months = Math.round(days / 30);
   return months < 12 ? `${months}mo` : `${Math.round(days / 365)}y`;
 }
+
+export function previewIntervals(
+  card: CardSchedule,
+  now: Date = new Date()
+): Record<ReviewGrade, string> {
+  return {
+    again: formatInterval(reviewCard(card, 'again', now), now),
+    hard: formatInterval(reviewCard(card, 'hard', now), now),
+    good: formatInterval(reviewCard(card, 'good', now), now),
+    easy: formatInterval(reviewCard(card, 'easy', now), now),
+  };
+}

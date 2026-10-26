@@ -17,6 +17,8 @@ export const configureAssistant = (voice: string, style: string, languageCode: s
     'sarah';
 
   const lang = getLanguage(languageCode);
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+  const isPublicHttps = appUrl.startsWith('https://');
 
   const vapiAssistant: CreateAssistantDTO = {
     name: 'Companion',
@@ -50,7 +52,8 @@ export const configureAssistant = (voice: string, style: string, languageCode: s
                      Break down the topic into smaller parts and teach the student one part at a time.
                      Keep your style of conversation {{ style }}.
                      Keep your responses short, like in a real voice conversation.
-                     Do not include any special characters in your responses - this is a voice conversation.
+                     When teaching visual concepts, processes, architectures, or math equations, proactively call render_diagram or render_equation so the student sees a visual aid on their whiteboard.
+                     Do not include any special characters in your spoken responses - this is a voice conversation.
                `,
         },
       ],
@@ -59,32 +62,31 @@ export const configureAssistant = (voice: string, style: string, languageCode: s
       'transcript',
       'speech-update',
       'hang',
-      'call-update',
+      'status-update',
       'tool-calls',
+      'function-call',
     ] as unknown as CreateAssistantDTO['clientMessages'],
-    serverMessages: [
-      'end-of-call-report',
-      'tool-calls',
-    ] as unknown as CreateAssistantDTO['serverMessages'],
-    server: process.env.NEXT_PUBLIC_APP_URL
-      ? { url: `${process.env.NEXT_PUBLIC_APP_URL}/api/vapi/webhook` }
-      : undefined,
+    serverMessages: (isPublicHttps
+      ? ['end-of-call-report', 'tool-calls']
+      : []) as unknown as CreateAssistantDTO['serverMessages'],
+    server: isPublicHttps ? { url: `${appUrl}/api/vapi/webhook` } : undefined,
   };
 
   // @ts-expect-error - overriding tools for model
   vapiAssistant.model.tools = [
     {
       type: 'function',
+      async: !isPublicHttps,
       messages: [
         {
           type: 'request-start',
-          content: 'Let me search your knowledge base for that...',
+          content: 'Let me check your uploaded study notes for that...',
         },
       ],
       function: {
         name: 'search_knowledge_base',
         description:
-          "Searches the user's uploaded documents (knowledge base) for information when they ask a specific question. Use this only when the user explicitly asks about their notes, uploads, or a highly specific concept that might be in their documents. It requires a search query and the user_id.",
+          "Searches the user's uploaded documents (knowledge base) for information when they ask a specific question about their notes, uploads, or PDFs. It requires a search query and the user_id.",
         parameters: {
           type: 'object',
           properties: {
@@ -100,15 +102,11 @@ export const configureAssistant = (voice: string, style: string, languageCode: s
           required: ['query', 'user_id'],
         },
       },
-      server: {
-        url: process.env.NEXT_PUBLIC_APP_URL
-          ? `${process.env.NEXT_PUBLIC_APP_URL}/api/vapi/webhook`
-          : '',
-      },
+      ...(isPublicHttps ? { server: { url: `${appUrl}/api/vapi/webhook` } } : {}),
     },
     {
       type: 'function',
-      async: false,
+      async: true,
       function: {
         name: 'render_diagram',
         description:
@@ -132,7 +130,7 @@ export const configureAssistant = (voice: string, style: string, languageCode: s
     },
     {
       type: 'function',
-      async: false,
+      async: true,
       function: {
         name: 'render_equation',
         description:

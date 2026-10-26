@@ -24,12 +24,15 @@ export async function POST(req: NextRequest) {
 
     if (!text || text.trim().length === 0) {
       return NextResponse.json(
-        { error: 'No text could be extracted from this PDF.' },
+        { error: 'No selectable text could be extracted from this PDF.' },
         { status: 400 }
       );
     }
 
-    const chunks = chunkText(text, 1000, 200);
+    // Scale chunk size dynamically so even large textbooks stay under ~45 chunks
+    // (fits within Gemini embedding context window and stays well under the 100/min free-tier quota)
+    const dynamicChunkSize = Math.max(1800, Math.ceil(text.length / 40));
+    const chunks = chunkText(text, dynamicChunkSize, 250);
     const embeddings = await generateEmbeddings(chunks);
 
     const supabase = createClient(
@@ -48,12 +51,15 @@ export async function POST(req: NextRequest) {
         chunk_count: chunks.length,
         status: 'ready',
       })
-      .select('id')
+      .select('*')
       .single();
 
     if (docError || !document) {
       console.error('Error creating document record:', docError);
-      return NextResponse.json({ error: 'Failed to create document record' }, { status: 500 });
+      return NextResponse.json(
+        { error: docError?.message || 'Failed to create document record' },
+        { status: 500 }
+      );
     }
 
     const chunkRows = chunks.map((chunk, index) => ({
@@ -62,7 +68,7 @@ export async function POST(req: NextRequest) {
       companion_id: companionId,
       chunk_index: index,
       content: chunk,
-      embedding: embeddings[index],
+      embedding: JSON.stringify(embeddings[index]),
     }));
 
     const { error: chunksError } = await supabase.from('document_chunks').insert(chunkRows);
@@ -73,16 +79,23 @@ export async function POST(req: NextRequest) {
         .from('documents')
         .update({ status: 'failed', error: chunksError.message })
         .eq('id', document.id);
-      return NextResponse.json({ error: 'Failed to save document chunks' }, { status: 500 });
+      return NextResponse.json(
+        { error: chunksError.message || 'Failed to save document chunks' },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
       success: true,
+      document,
       documentId: document.id,
       chunks: chunks.length,
     });
   } catch (error) {
     console.error('RAG Error:', error);
-    return NextResponse.json({ error: 'Failed to process document' }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to process document' },
+      { status: 500 }
+    );
   }
 }

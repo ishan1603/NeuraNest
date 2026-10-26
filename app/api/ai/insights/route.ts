@@ -35,29 +35,74 @@ export async function POST(req: Request) {
       baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
     });
 
-    const { callId } = await req.json();
+    const body = await req.json();
+    const {
+      callId,
+      companionId,
+      userId,
+      transcript: clientTranscript,
+      durationSeconds,
+    } = body as {
+      callId?: string;
+      companionId?: string;
+      userId?: string;
+      transcript?: string;
+      durationSeconds?: number;
+    };
 
     if (!callId) {
       return NextResponse.json({ error: 'Missing callId' }, { status: 400 });
     }
 
-    const { data: session, error } = await supabase
+    let { data: session } = await supabase
       .from('session_history')
       .select('*')
       .eq('vapi_call_id', callId)
-      .single();
+      .maybeSingle();
 
-    if (error || !session) {
+    if (!session && companionId && userId) {
+      const { data: created } = await supabase
+        .from('session_history')
+        .insert({
+          companion_id: companionId,
+          user_id: userId,
+          vapi_call_id: callId,
+          status: 'finalizing',
+          duration_seconds: durationSeconds || 60,
+          ended_at: new Date().toISOString(),
+          transcript_source: clientTranscript || null,
+        })
+        .select('*')
+        .single();
+      session = created;
+    }
+
+    if (!session) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
-    if (!session.transcript_source) {
+    const transcriptText = session.transcript_source || clientTranscript;
+
+    if (!transcriptText || transcriptText.trim().length === 0) {
+      await supabase
+        .from('session_history')
+        .update({
+          status: 'completed',
+          ended_at: new Date().toISOString(),
+          duration_seconds: durationSeconds ?? session.duration_seconds ?? 30,
+        })
+        .eq('id', session.id);
       return NextResponse.json({ error: 'No transcript available' }, { status: 400 });
     }
 
     await supabase
       .from('session_history')
-      .update({ insights_status: 'pending' })
+      .update({
+        insights_status: 'pending',
+        transcript_source: transcriptText,
+        duration_seconds: durationSeconds ?? session.duration_seconds ?? 60,
+        ended_at: session.ended_at || new Date().toISOString(),
+      })
       .eq('id', session.id);
 
     const completion = await gemini.chat.completions.parse({
@@ -66,11 +111,11 @@ export async function POST(req: Request) {
         {
           role: 'system',
           content:
-            'You are an educational assistant. Analyze the tutoring session transcript and extract a summary, key concepts, spaced repetition flashcards, and a multiple-choice quiz.',
+            'You are an expert educational assistant. Analyze the tutoring session transcript and extract a concise study summary, 3-6 key concepts, 3-5 high-yield spaced repetition flashcards (front question, back concise answer), and a 3-question multiple-choice quiz (4 options each, 0-based correct_option_index).',
         },
         {
           role: 'user',
-          content: `Transcript:\n\n${session.transcript_source}`,
+          content: `Transcript:\n\n${transcriptText}`,
         },
       ],
       response_format: zodResponseFormat(InsightsSchema, 'insights'),
@@ -84,9 +129,9 @@ export async function POST(req: Request) {
 
     if (parsed.flashcards.length > 0) {
       const cards = parsed.flashcards.map((fc: { front: string; back: string }) => ({
-        user_id: session.user_id,
-        session_id: session.id,
-        companion_id: session.companion_id,
+        user_id: session!.user_id,
+        session_id: session!.id,
+        companion_id: session!.companion_id,
         front: fc.front,
         back: fc.back,
       }));
@@ -102,7 +147,11 @@ export async function POST(req: Request) {
       })
       .eq('id', session.id);
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      sessionId: session.id,
+      insights: parsed,
+    });
   } catch (error) {
     console.error('Insights Error:', error);
     return NextResponse.json({ error: 'Failed to generate insights' }, { status: 500 });
