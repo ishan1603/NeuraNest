@@ -167,7 +167,7 @@ const CompanionComponent = ({
         );
       }
     } catch (err) {
-      console.error('Failed to generate post-session insights:', err);
+      console.warn('Failed to generate post-session insights:', err);
     } finally {
       setInsightsLoading(false);
     }
@@ -212,11 +212,21 @@ const CompanionComponent = ({
           return newMessages;
         });
       } else if (message.type === 'tool-calls') {
-        const calls = message.toolCalls || [];
+        const raw = message as VapiMessage & { toolCallList?: VapiMessage['toolCalls'] };
+        const calls = raw.toolCalls || raw.toolCallList || [];
         for (const call of calls) {
+          if (!call?.function?.name) continue;
           const rawArgs = call.function.arguments;
-          const args: Record<string, string> =
-            typeof rawArgs === 'string' ? JSON.parse(rawArgs || '{}') : rawArgs || {};
+          let args: Record<string, string> = {};
+          try {
+            args =
+              typeof rawArgs === 'string'
+                ? JSON.parse(rawArgs || '{}')
+                : (rawArgs as Record<string, string>) || {};
+          } catch {
+            console.warn('Could not parse tool arguments:', rawArgs);
+            continue;
+          }
 
           if (call.function.name === 'render_diagram') {
             if (args.code) {
@@ -261,7 +271,7 @@ const CompanionComponent = ({
                 });
               }
             } catch (err) {
-              console.error('Local RAG search failed:', err);
+              console.warn('Local RAG search failed:', err);
             }
           }
         }
@@ -269,25 +279,55 @@ const CompanionComponent = ({
     };
 
     const onError = (error: unknown) => {
-      const err = error as {
+      const err = (error || {}) as {
         type?: string;
-        message?: string;
-        error?: { message?: string | string[] };
+        message?: unknown;
+        errorMsg?: string;
+        error?: unknown;
       };
+
+      // Non-fatal audio pipeline hiccups (Krisp noise cancellation, level observers)
       if (
-        err?.type === 'audio-processing-setup-error' ||
-        err?.type === 'audio-observer-setup-error' ||
-        err?.type === 'audio-processor-recovery-error'
+        err.type === 'audio-processing-setup-error' ||
+        err.type === 'audio-observer-setup-error' ||
+        err.type === 'audio-processor-recovery-error'
       ) {
         return;
       }
-      console.warn('Vapi Error:', err);
-      const detail = Array.isArray(err?.error?.message)
-        ? err.error.message[0]
-        : err?.error?.message || err?.message || 'Voice connection ended';
+
+      // Flatten nested Vapi/Daily error shapes into a plain string
+      const extract = (val: unknown, depth = 0): string => {
+        if (!val || depth > 4) return '';
+        if (typeof val === 'string') return val;
+        if (Array.isArray(val)) return extract(val[0], depth + 1);
+        if (typeof val === 'object') {
+          const o = val as Record<string, unknown>;
+          return (
+            extract(o.errorMsg, depth + 1) ||
+            extract(o.msg, depth + 1) ||
+            extract(o.message, depth + 1) ||
+            extract(o.error, depth + 1) ||
+            extract(o.type, depth + 1)
+          );
+        }
+        return String(val);
+      };
+      const detail = extract(err) || 'Voice connection ended';
+
+      // Daily "ejected / Meeting has ended" fires when the assistant hangs up or
+      // max duration is reached; treat it as a normal end rather than an error.
+      if (/meeting has ended|ejected|meeting ended/i.test(detail)) {
+        setCallStatus(CallStatus.FINISHED);
+        setIsSpeaking(false);
+        triggerPostSessionInsights();
+        return;
+      }
+
+      console.warn('Vapi error:', detail, err);
       toast.error(detail);
       setCallStatus(CallStatus.FINISHED);
       setIsSpeaking(false);
+      triggerPostSessionInsights();
     };
 
     const onSpeechStart = () => setIsSpeaking(true);
