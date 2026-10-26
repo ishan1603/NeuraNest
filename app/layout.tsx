@@ -1,18 +1,31 @@
 import type { Metadata, Viewport } from 'next';
-import { Bricolage_Grotesque } from 'next/font/google';
+import { Space_Grotesk, Silkscreen, JetBrains_Mono } from 'next/font/google';
 import { ClerkProvider } from '@clerk/nextjs';
 import { Toaster } from 'sonner';
 import './globals.css';
 import Navbar from '@/components/Navbar';
 import { ThemeProvider } from '@/components/ThemeProvider';
 
-const bricolage = Bricolage_Grotesque({
+const spaceGrotesk = Space_Grotesk({
   variable: '--font-bricolage',
   subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+});
+
+const silkscreen = Silkscreen({
+  variable: '--font-pixel',
+  subsets: ['latin'],
+  weight: ['400', '700'],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: '--font-mono',
+  subsets: ['latin'],
+  weight: ['500', '700'],
 });
 
 export const metadata: Metadata = {
-  title: 'NeuraNest — Real-Time AI Voice Tutoring Platform',
+  title: 'NeuraNest — Real-Time AI Voice Tutoring & 3D Learning Studio',
   description:
     'Interactive AI voice companions with RAG document grounding, live Mermaid & KaTeX whiteboard, SM-2 spaced repetition flashcards, and gamified learning analytics.',
 };
@@ -23,8 +36,8 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
   interactiveWidget: 'resizes-content',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f9f9f9' },
-    { media: '(prefers-color-scheme: dark)', color: '#0a0a0a' },
+    { media: '(prefers-color-scheme: light)', color: '#faf7f2' },
+    { media: '(prefers-color-scheme: dark)', color: '#070913' },
   ],
 };
 
@@ -40,7 +53,9 @@ export default function RootLayout({
       }
     >
       <html lang="en" suppressHydrationWarning>
-        <body className={`${bricolage.variable} antialiased`}>
+        <body
+          className={`${spaceGrotesk.variable} ${silkscreen.variable} ${jetbrainsMono.variable} antialiased`}
+        >
           <ThemeProvider
             attribute="class"
             defaultTheme="system"

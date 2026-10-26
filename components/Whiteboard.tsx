@@ -3,11 +3,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
-import { Sigma, GitBranch, X } from 'lucide-react';
+import { Sigma, GitBranch, X, Sparkles, Loader2 } from 'lucide-react';
 
 interface WhiteboardProps {
   type: 'mermaid' | 'latex' | null;
   content: string;
+  title?: string;
+  explanation?: string;
+  loading?: boolean;
+  onRegenerate?: () => void;
   onClose?: () => void;
 }
 
@@ -32,12 +36,20 @@ function sanitizeLatex(code: string): string {
     .trim();
 }
 
-export default function Whiteboard({ type, content, onClose }: WhiteboardProps) {
+export default function Whiteboard({
+  type,
+  content,
+  title,
+  explanation,
+  loading = false,
+  onRegenerate,
+  onClose,
+}: WhiteboardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!containerRef.current || !type || !content) return;
+    if (!containerRef.current || !type || !content || loading) return;
     let cancelled = false;
     setRenderError(null);
 
@@ -64,7 +76,6 @@ export default function Whiteboard({ type, content, onClose }: WhiteboardProps) 
 
           const id = 'mermaid-svg-' + Math.random().toString(36).slice(2);
           const { svg } = await mermaid.render(id, code);
-          // Mermaid leaves a temp node in <body> on some failures; clean it up.
           document.getElementById('d' + id)?.remove();
           if (!cancelled && containerRef.current) {
             containerRef.current.innerHTML = svg;
@@ -77,7 +88,8 @@ export default function Whiteboard({ type, content, onClose }: WhiteboardProps) 
         }
       } catch (e) {
         console.warn('Whiteboard render skipped:', e);
-        if (!cancelled) setRenderError(`Unable to render this ${type === 'mermaid' ? 'diagram' : 'formula'}.`);
+        if (!cancelled)
+          setRenderError(`Unable to render this ${type === 'mermaid' ? 'diagram' : 'formula'}.`);
       }
     };
 
@@ -85,53 +97,96 @@ export default function Whiteboard({ type, content, onClose }: WhiteboardProps) 
     return () => {
       cancelled = true;
     };
-  }, [type, content]);
+  }, [type, content, loading]);
 
   if (!type) return null;
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-xs">
-      <div className="flex items-center justify-between border-b border-border px-5 py-3">
-        <div className="flex items-center gap-2 text-sm font-semibold">
+    <div className="flex h-full w-full flex-col overflow-hidden rounded-3xl border-2 border-border bg-card shadow-xs">
+      <div className="flex items-center justify-between border-b border-border bg-muted/40 px-5 py-3">
+        <div className="flex items-center gap-2 text-sm font-bold">
           {type === 'mermaid' ? (
             <>
               <GitBranch className="h-4 w-4 text-primary" />
-              <span>Live Architecture / Concept Diagram</span>
+              <span>{title || 'AI Live Concept Architecture'}</span>
             </>
           ) : (
             <>
               <Sigma className="h-4 w-4 text-primary" />
-              <span>Live Mathematical Formula</span>
+              <span>{title || 'AI Mathematical Derivation'}</span>
             </>
           )}
+          <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-primary">
+            GEMINI 2.5 LIVE
+          </span>
         </div>
-        {onClose && (
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close whiteboard"
-            className="cursor-pointer rounded-lg p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-          >
-            <X className="h-4 w-4" />
-          </button>
+
+        <div className="flex items-center gap-2">
+          {onRegenerate && (
+            <button
+              type="button"
+              disabled={loading}
+              onClick={onRegenerate}
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-border bg-background px-2.5 py-1 text-xs font-semibold hover:border-primary/50 hover:text-primary disabled:opacity-50"
+            >
+              {loading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+              )}
+              <span>Refresh from Live Talk</span>
+            </button>
+          )}
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close whiteboard"
+              className="cursor-pointer rounded-lg p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-grow flex-col items-center justify-center overflow-auto p-6">
+        {loading ? (
+          <div className="flex flex-col items-center gap-3 py-12 text-center">
+            <Loader2 className="h-7 w-7 animate-spin text-primary" />
+            <p className="text-sm font-semibold text-muted-foreground">
+              Synthesizing live {type === 'mermaid' ? 'architecture diagram' : 'mathematical formula'} from lecture context...
+            </p>
+          </div>
+        ) : (
+          <>
+            {renderError && (
+              <div className="max-w-md space-y-2 text-center">
+                <p className="text-sm font-semibold text-muted-foreground">{renderError}</p>
+                <pre className="max-h-40 overflow-auto rounded-xl bg-muted p-3 text-left text-xs whitespace-pre-wrap">
+                  {content}
+                </pre>
+              </div>
+            )}
+            <div
+              ref={containerRef}
+              className={
+                renderError
+                  ? 'hidden'
+                  : 'flex max-w-full items-center justify-center overflow-auto py-2'
+              }
+              style={{ fontSize: type === 'latex' ? '1.35rem' : 'inherit' }}
+            />
+          </>
         )}
       </div>
 
-      <div className="flex flex-grow items-center justify-center overflow-auto p-6">
-        {renderError && (
-          <div className="max-w-md space-y-2 text-center">
-            <p className="text-sm font-semibold text-muted-foreground">{renderError}</p>
-            <pre className="max-h-40 overflow-auto rounded-xl bg-muted p-3 text-left text-xs whitespace-pre-wrap">
-              {content}
-            </pre>
-          </div>
-        )}
-        <div
-          ref={containerRef}
-          className={renderError ? 'hidden' : 'flex max-w-full items-center justify-center overflow-auto'}
-          style={{ fontSize: type === 'latex' ? '1.5rem' : 'inherit' }}
-        />
-      </div>
+      {explanation && !loading && (
+        <div className="border-t border-border bg-muted/30 px-5 py-3 text-xs leading-relaxed text-muted-foreground">
+          <strong className="font-semibold text-foreground">AI Tutor Note: </strong>
+          {explanation}
+        </div>
+      )}
     </div>
   );
 }

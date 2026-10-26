@@ -1,6 +1,6 @@
 'use client';
 
-import { cn, configureAssistant, getSubjectColor } from '@/lib/utils';
+import { cn, configureAssistant, getSubjectColor, isNumericSubject } from '@/lib/utils';
 import { vapi } from '@/lib/vapi.sdk';
 import Lottie, { LottieRefCurrentProps } from 'lottie-react';
 import Image from 'next/image';
@@ -10,10 +10,19 @@ import React from 'react';
 import soundwaves from '@/constants/soundwaves.json';
 import { addToSessionHistory } from '@/lib/actions/companion.actions';
 import { submitQuizAttempt } from '@/lib/actions/flashcard.actions';
+import {
+  retrieveDocumentContext,
+  type DocumentRecord,
+  type RetrievedChunkProof,
+} from '@/lib/actions/knowledge.actions';
 import { toast } from 'sonner';
 import {
   Brain,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  FileCheck2,
+  FileText,
   GitBranch,
   Loader2,
   Sigma,
@@ -32,6 +41,9 @@ interface SavedMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
+  committedText: string;
+  partialText: string;
+  lastFinalSegment: string;
   isPartial?: boolean;
 }
 
@@ -70,6 +82,7 @@ interface CompanionComponentProps {
   userImage: string;
   style: string;
   voice: string;
+  userDocuments?: DocumentRecord[];
 }
 
 const CompanionComponent = ({
@@ -82,6 +95,7 @@ const CompanionComponent = ({
   userId,
   style,
   voice,
+  userDocuments = [],
 }: CompanionComponentProps & { userId: string }) => {
   const [callStatus, setCallStatus] = useState<CallStatus>(CallStatus.INACTIVE);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -94,12 +108,28 @@ const CompanionComponent = ({
   const activeCallIdRef = useRef<string | null>(null);
   const callStartTimeRef = useRef<number | null>(null);
   const insightsRequestedRef = useRef(false);
+  const lastProcessedTranscriptRef = useRef<string>('');
 
+  const numericSubject = isNumericSubject(subject);
+
+  // RAG Grounding state
+  const [selectedDocId, setSelectedDocId] = useState<string>(
+    userDocuments.length > 0 ? userDocuments[0].id : 'none'
+  );
+  const [ragProofs, setRagProofs] = useState<RetrievedChunkProof[]>([]);
+  const [ragLoading, setRagLoading] = useState(false);
+  const [showRagProofDrawer, setShowRagProofDrawer] = useState(false);
+
+  // Whiteboard state
   const [visualContent, setVisualContent] = useState<{
     type: 'mermaid' | 'latex';
     content: string;
+    title?: string;
+    explanation?: string;
   } | null>(null);
+  const [visualLoading, setVisualLoading] = useState(false);
 
+  // Post-Session AI Insights state
   const [insightsLoading, setInsightsLoading] = useState(false);
   const [insights, setInsights] = useState<SessionInsights | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -129,6 +159,88 @@ const CompanionComponent = ({
       transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Load RAG chunks whenever selectedDocId changes
+  const loadRagContext = useCallback(
+    async (docId: string, searchQuery: string) => {
+      if (!docId || docId === 'none') {
+        setRagProofs([]);
+        return [];
+      }
+      setRagLoading(true);
+      try {
+        const proofs = await retrieveDocumentContext({
+          documentId: docId,
+          query: searchQuery || topic,
+          limit: 4,
+        });
+        setRagProofs(proofs);
+        return proofs;
+      } catch (err) {
+        console.warn('Could not load RAG context:', err);
+        return [];
+      } finally {
+        setRagLoading(false);
+      }
+    },
+    [topic]
+  );
+
+  useEffect(() => {
+    if (selectedDocId && selectedDocId !== 'none') {
+      loadRagContext(selectedDocId, topic);
+    } else {
+      setRagProofs([]);
+    }
+  }, [selectedDocId, topic, loadRagContext]);
+
+  const generateAiVisual = useCallback(
+    async (type: 'mermaid' | 'latex') => {
+      setVisualLoading(true);
+      setVisualContent(prev => ({
+        type,
+        content: prev?.type === type ? prev.content : '',
+        title: type === 'mermaid' ? 'Synthesizing Concept Diagram...' : 'Synthesizing Formula...',
+      }));
+
+      try {
+        const transcriptText = messagesRef.current
+          .map(m => `${m.role === 'assistant' ? name : userName}: ${m.content}`)
+          .join('\n');
+        const pdfText = ragProofs.map(p => p.content).join('\n\n');
+
+        const res = await fetch('/api/ai/visual', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type,
+            subject,
+            topic,
+            transcript: transcriptText,
+            pdfContext: pdfText,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok && data.visual) {
+          setVisualContent({
+            type,
+            content: data.visual.content,
+            title: data.visual.title,
+            explanation: data.visual.explanation,
+          });
+        } else {
+          toast.error('Could not generate visual aid right now.');
+          setVisualContent(null);
+        }
+      } catch (err) {
+        console.warn('AI visual generation error:', err);
+        setVisualContent(null);
+      } finally {
+        setVisualLoading(false);
+      }
+    },
+    [name, ragProofs, subject, topic, userName]
+  );
 
   const triggerPostSessionInsights = useCallback(async () => {
     if (insightsRequestedRef.current) return;
@@ -174,6 +286,9 @@ const CompanionComponent = ({
   }, [companionId, name, userId, userName]);
 
   useEffect(() => {
+    // Clear any previously attached listeners so React StrictMode / re-renders never double-bind
+    vapi.removeAllListeners();
+
     const onCallStart = () => {
       setCallStatus(CallStatus.ACTIVE);
       callStartTimeRef.current = Date.now();
@@ -189,27 +304,69 @@ const CompanionComponent = ({
     const onMessage = async (msg: unknown) => {
       const message = msg as VapiMessage;
       if (message.type === 'transcript' && message.transcript && message.role) {
-        const isFinal = message.transcriptType === 'final';
-        setMessages(prev => {
-          const newMessages = [...prev];
-          const lastMsgIndex = newMessages.length - 1;
-          const lastMsg = lastMsgIndex >= 0 ? newMessages[lastMsgIndex] : null;
+        const cleanSegment = message.transcript.trim();
+        if (!cleanSegment) return;
 
-          if (lastMsg && lastMsg.role === message.role && lastMsg.isPartial) {
-            newMessages[lastMsgIndex] = {
-              ...lastMsg,
-              content: message.transcript!,
-              isPartial: !isFinal,
-            };
-          } else if (message.transcript!.trim().length > 0) {
-            newMessages.push({
-              id: crypto.randomUUID(),
-              role: message.role!,
-              content: message.transcript!,
-              isPartial: !isFinal,
-            });
+        const isFinal = message.transcriptType === 'final';
+        const dedupKey = `${message.role}:${isFinal ? 'F' : 'P'}:${cleanSegment}`;
+        if (lastProcessedTranscriptRef.current === dedupKey) {
+          return;
+        }
+        lastProcessedTranscriptRef.current = dedupKey;
+
+        setMessages(prev => {
+          const next = [...prev];
+          const lastIdx = next.length - 1;
+          const last = lastIdx >= 0 ? next[lastIdx] : null;
+
+          // Keep consecutive sentences from the SAME speaker in ONE unified turn bubble
+          if (last && last.role === message.role) {
+            if (isFinal) {
+              // Ignore duplicate final event for the exact same sentence
+              if (
+                last.lastFinalSegment === cleanSegment ||
+                last.committedText.endsWith(cleanSegment)
+              ) {
+                return prev;
+              }
+              const updatedCommitted = last.committedText
+                ? `${last.committedText} ${cleanSegment}`
+                : cleanSegment;
+              next[lastIdx] = {
+                ...last,
+                committedText: updatedCommitted,
+                partialText: '',
+                lastFinalSegment: cleanSegment,
+                content: updatedCommitted,
+                isPartial: false,
+              };
+            } else {
+              // Partial streaming segment appended cleanly after committed sentences in this turn
+              if (last.lastFinalSegment === cleanSegment) return prev;
+              const combined = last.committedText
+                ? `${last.committedText} ${cleanSegment}`
+                : cleanSegment;
+              next[lastIdx] = {
+                ...last,
+                partialText: cleanSegment,
+                content: combined,
+                isPartial: true,
+              };
+            }
+            return next;
           }
-          return newMessages;
+
+          // Speaker changed: start a new turn bubble
+          next.push({
+            id: crypto.randomUUID(),
+            role: message.role!,
+            committedText: isFinal ? cleanSegment : '',
+            partialText: isFinal ? '' : cleanSegment,
+            lastFinalSegment: isFinal ? cleanSegment : '',
+            content: cleanSegment,
+            isPartial: !isFinal,
+          });
+          return next;
         });
       } else if (message.type === 'tool-calls') {
         const raw = message as VapiMessage & { toolCallList?: VapiMessage['toolCalls'] };
@@ -230,45 +387,46 @@ const CompanionComponent = ({
 
           if (call.function.name === 'render_diagram') {
             if (args.code) {
-              setVisualContent({ type: 'mermaid', content: args.code });
+              setVisualContent({
+                type: 'mermaid',
+                content: args.code,
+                title: 'Live AI Tutor Diagram',
+                explanation: args.explanation,
+              });
             }
-          } else if (call.function.name === 'render_equation') {
+          } else if (call.function.name === 'render_equation' && numericSubject) {
             if (args.latex) {
-              setVisualContent({ type: 'latex', content: args.latex });
+              setVisualContent({
+                type: 'latex',
+                content: args.latex,
+                title: 'Live AI Tutor Formula',
+                explanation: args.explanation,
+              });
             }
           } else if (call.function.name === 'search_knowledge_base') {
             try {
-              const res = await fetch('/api/vapi/webhook', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  message: {
-                    type: 'tool-calls',
-                    toolCalls: [
-                      {
-                        id: call.id || 'local-rag',
-                        function: {
-                          name: 'search_knowledge_base',
-                          arguments: {
-                            query: args.query || topic,
-                            user_id: userId,
-                          },
-                        },
-                      },
-                    ],
-                  },
-                }),
-              });
-              const data = await res.json();
-              const retrieved = data?.results?.[0]?.result;
-              if (retrieved) {
+              const proofs = await loadRagContext(
+                selectedDocId === 'none' ? 'all' : selectedDocId,
+                args.query || topic
+              );
+              if (proofs.length > 0) {
+                setShowRagProofDrawer(true);
+                const retrievedText = proofs
+                  .map(
+                    p =>
+                      `[${p.documentName} - Chunk #${p.chunkIndex + 1} (${Math.round(p.similarity * 100)}% match)]: ${p.content}`
+                  )
+                  .join('\n\n');
                 vapi.send({
                   type: 'add-message',
                   message: {
                     role: 'system',
-                    content: `Knowledge Base Context for "${args.query || topic}":\n${retrieved}`,
+                    content: `Retrieved from student's uploaded PDF for query "${args.query || topic}":\n${retrievedText}`,
                   },
                 });
+                toast.success(
+                  `Tutor referenced ${proofs.length} chunks from "${proofs[0].documentName}"`
+                );
               }
             } catch (err) {
               console.warn('Local RAG search failed:', err);
@@ -286,7 +444,6 @@ const CompanionComponent = ({
         error?: unknown;
       };
 
-      // Non-fatal audio pipeline hiccups (Krisp noise cancellation, level observers)
       if (
         err.type === 'audio-processing-setup-error' ||
         err.type === 'audio-observer-setup-error' ||
@@ -295,7 +452,6 @@ const CompanionComponent = ({
         return;
       }
 
-      // Flatten nested Vapi/Daily error shapes into a plain string
       const extract = (val: unknown, depth = 0): string => {
         if (!val || depth > 4) return '';
         if (typeof val === 'string') return val;
@@ -314,8 +470,6 @@ const CompanionComponent = ({
       };
       const detail = extract(err) || 'Voice connection ended';
 
-      // Daily "ejected / Meeting has ended" fires when the assistant hangs up or
-      // max duration is reached; treat it as a normal end rather than an error.
       if (/meeting has ended|ejected|meeting ended/i.test(detail)) {
         setCallStatus(CallStatus.FINISHED);
         setIsSpeaking(false);
@@ -343,7 +497,17 @@ const CompanionComponent = ({
     return () => {
       vapi.removeAllListeners();
     };
-  }, [companionId, name, topic, userId, userName, triggerPostSessionInsights]);
+  }, [
+    companionId,
+    loadRagContext,
+    name,
+    numericSubject,
+    selectedDocId,
+    topic,
+    triggerPostSessionInsights,
+    userId,
+    userName,
+  ]);
 
   const toggleMicrophone = () => {
     const muted = vapi.isMuted();
@@ -354,13 +518,38 @@ const CompanionComponent = ({
   const handleCall = async () => {
     setCallStatus(CallStatus.CONNECTING);
     setMessages([]);
-    setVisualContent(null);
     setInsights(null);
     setQuizSubmitted(false);
     setSelectedAnswers({});
     insightsRequestedRef.current = false;
+    lastProcessedTranscriptRef.current = '';
 
-    const assistant = configureAssistant(voice, style);
+    // Ensure fresh RAG chunks are loaded for the chosen document before starting
+    let activeProofs = ragProofs;
+    if (selectedDocId !== 'none' && activeProofs.length === 0) {
+      activeProofs = await loadRagContext(selectedDocId, topic);
+    }
+
+    const groundingDocName =
+      activeProofs.length > 0
+        ? activeProofs[0].documentName
+        : userDocuments.find(d => d.id === selectedDocId)?.name;
+
+    const groundingExcerpts =
+      activeProofs.length > 0
+        ? activeProofs
+            .map(
+              p =>
+                `[Excerpt #${p.chunkIndex + 1} (${Math.round(p.similarity * 100)}% relevance)]: ${p.content}`
+            )
+            .join('\n\n')
+        : undefined;
+
+    const assistant = configureAssistant(voice, style, 'en', {
+      subject,
+      groundingDocName,
+      groundingExcerpts,
+    });
 
     const assistantOverrides = {
       variableValues: {
@@ -376,9 +565,9 @@ const CompanionComponent = ({
       const newCallId = call?.id || crypto.randomUUID();
       setActiveCallId(newCallId);
       activeCallIdRef.current = newCallId;
-      addToSessionHistory(companionId, newCallId, 900).catch(console.error);
+      addToSessionHistory(companionId, newCallId, 900).catch(console.warn);
     } catch (e) {
-      console.error(e);
+      console.warn(e);
       setCallStatus(CallStatus.INACTIVE);
       toast.error('Failed to start session. Check microphone permissions.');
     }
@@ -415,25 +604,113 @@ const CompanionComponent = ({
     import('./Whiteboard').then(mod => setWhiteboardComponent(() => mod.default));
   }, []);
 
-  const showSampleDiagram = () => {
-    setVisualContent({
-      type: 'mermaid',
-      content: `flowchart TD\n  A["${subject.toUpperCase()}: ${topic.slice(0, 28)}"] --> B["Core Principles"]\n  B --> C["Worked Example"]\n  C --> D["Active Recall & Mastery"]`,
-    });
-  };
-
-  const showSampleFormula = () => {
-    setVisualContent({
-      type: 'latex',
-      content:
-        subject === 'maths' || subject === 'science'
-          ? '\\int_{a}^{b} f(x)\\,dx = F(b) - F(a)'
-          : '\\text{Retention}(t) = e^{-\\frac{t}{S}}',
-    });
-  };
-
   return (
     <section className="flex min-h-[calc(100dvh-160px)] flex-col gap-6 pb-10">
+      {/* RAG Document Grounding & Proof Bar */}
+      <div className="rounded-3xl border-2 border-border bg-card p-5 shadow-xs">
+        <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <FileCheck2 className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold">PDF Knowledge Grounding (RAG)</h3>
+                {ragProofs.length > 0 ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-0.5 font-mono text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                    ● ACTIVE · {ragProofs.length} CHUNKS MATCHED
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 font-mono text-[11px] font-semibold text-muted-foreground">
+                    {userDocuments.length === 0 ? 'NO PDFS UPLOADED' : 'UNGROUNDED'}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {ragProofs.length > 0
+                  ? `Tutor is grounded in "${ragProofs[0].documentName}" (top match: ${Math.round(ragProofs[0].similarity * 100)}% vector similarity)`
+                  : 'Select an uploaded PDF so your AI tutor teaches directly from your course notes.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            {userDocuments.length > 0 ? (
+              <select
+                aria-label="Select grounding PDF document"
+                value={selectedDocId}
+                onChange={e => setSelectedDocId(e.target.value)}
+                className="rounded-xl border border-border bg-background px-3.5 py-2 text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                {userDocuments.map(doc => (
+                  <option key={doc.id} value={doc.id}>
+                    📄 {doc.name} ({doc.chunk_count} chunks)
+                  </option>
+                ))}
+                <option value="all">📚 All Uploaded PDFs ({userDocuments.length})</option>
+                <option value="none">🚫 Do Not Reference PDFs</option>
+              </select>
+            ) : (
+              <Link
+                href="/knowledge"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3.5 py-2 text-xs font-semibold hover:border-primary/50"
+              >
+                <FileText className="h-3.5 w-3.5 text-primary" />
+                <span>Upload a PDF in Knowledge Base</span>
+              </Link>
+            )}
+
+            {ragProofs.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowRagProofDrawer(prev => !prev)}
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300"
+              >
+                <span>{showRagProofDrawer ? 'Hide PDF Proof' : 'View PDF Citations'}</span>
+                {showRagProofDrawer ? (
+                  <ChevronUp className="h-3.5 w-3.5" />
+                ) : (
+                  <ChevronDown className="h-3.5 w-3.5" />
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Expandable Proof Drawer showing exact retrieved chunks & similarity scores */}
+        {showRagProofDrawer && ragProofs.length > 0 && (
+          <div className="mt-4 space-y-3 border-t border-border pt-4">
+            <div className="flex items-center justify-between">
+              <p className="font-mono text-xs font-bold tracking-wider text-muted-foreground uppercase">
+                Verified pgvector Excerpts Injected into Tutor Context ({ragProofs[0].documentName})
+              </p>
+              {ragLoading && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
+            </div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {ragProofs.map(proof => (
+                <div
+                  key={proof.id}
+                  className="rounded-2xl border border-border bg-background p-3.5 text-xs"
+                >
+                  <div className="mb-1.5 flex items-center justify-between font-mono">
+                    <span className="font-bold text-primary">
+                      📄 {proof.documentName} · Chunk #{proof.chunkIndex + 1}
+                    </span>
+                    <span className="rounded-md bg-emerald-500/15 px-2 py-0.5 font-bold text-emerald-600 dark:text-emerald-400">
+                      {Math.round(proof.similarity * 100)}% match
+                    </span>
+                  </div>
+                  <p className="line-clamp-4 leading-relaxed text-muted-foreground">
+                    {proof.content}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Main Avatar + User Controls Stage */}
       <section className="flex shrink-0 gap-6 max-sm:flex-col">
         <div className="companion-section">
           <div className="companion-avatar" style={{ backgroundColor: getSubjectColor(subject) }}>
@@ -473,24 +750,29 @@ const CompanionComponent = ({
             <p className="mt-1 text-sm text-muted-foreground">{topic}</p>
           </div>
 
-          {/* Interactive Whiteboard Quick Controls */}
-          <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
+          {/* Live AI Whiteboard Generators (Formula shown ONLY for numeric subjects) */}
+          <div className="mt-1 flex flex-wrap items-center justify-center gap-2.5">
             <button
               type="button"
-              onClick={showSampleDiagram}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+              disabled={visualLoading}
+              onClick={() => generateAiVisual('mermaid')}
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border-2 border-border bg-background px-3.5 py-2 text-xs font-bold text-foreground transition-colors hover:border-primary hover:text-primary disabled:opacity-50"
             >
               <GitBranch className="h-3.5 w-3.5 text-primary" />
-              <span>Concept Map</span>
+              <span>Generate AI Concept Diagram</span>
             </button>
-            <button
-              type="button"
-              onClick={showSampleFormula}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
-            >
-              <Sigma className="h-3.5 w-3.5 text-primary" />
-              <span>Key Formula</span>
-            </button>
+
+            {numericSubject && (
+              <button
+                type="button"
+                disabled={visualLoading}
+                onClick={() => generateAiVisual('latex')}
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border-2 border-border bg-background px-3.5 py-2 text-xs font-bold text-foreground transition-colors hover:border-primary hover:text-primary disabled:opacity-50"
+              >
+                <Sigma className="h-3.5 w-3.5 text-primary" />
+                <span>Generate AI Formula</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -544,25 +826,25 @@ const CompanionComponent = ({
       {/* Live Transcript + Split-Screen Whiteboard */}
       <section
         className={cn(
-          'flex min-h-[320px] flex-grow gap-6',
+          'flex min-h-[340px] flex-grow gap-6',
           visualContent ? 'flex-row max-md:flex-col' : 'flex-col'
         )}
       >
         <div
           className={cn(
-            'relative flex min-h-[300px] flex-grow flex-col rounded-3xl border border-border bg-card p-5 shadow-xs',
+            'relative flex min-h-[320px] flex-grow flex-col rounded-3xl border-2 border-border bg-card p-5 shadow-xs',
             visualContent ? 'w-1/3 max-md:h-1/2 max-md:w-full' : 'w-full'
           )}
         >
           <div
             ref={transcriptRef}
-            className="flex h-full max-h-[380px] w-full flex-col gap-3 overflow-y-auto overscroll-contain pr-2 pb-12 text-lg scroll-smooth"
+            className="flex h-full max-h-[400px] w-full flex-col gap-3.5 overflow-y-auto overscroll-contain pr-2 pb-12 text-lg scroll-smooth"
           >
             {messages.length === 0 && callStatus === CallStatus.INACTIVE && (
               <p className="mt-6 text-center text-sm text-muted-foreground">
-                Press <strong>Start Session</strong> to begin your interactive voice lesson, or use{' '}
-                <strong>Concept Map</strong> / <strong>Key Formula</strong> above to open the live
-                whiteboard.
+                Press <strong>Start Session</strong> to begin your interactive voice lesson, or click{' '}
+                <strong>Generate AI Concept Diagram</strong> above to synthesize a live diagram for{' '}
+                <em>{topic}</em>.
               </p>
             )}
             {messages.length === 0 && callStatus === CallStatus.ACTIVE && (
@@ -578,16 +860,16 @@ const CompanionComponent = ({
                   message.role === 'assistant' ? 'self-start' : 'self-end'
                 )}
               >
-                <span className="mb-1 text-xs font-semibold text-muted-foreground">
+                <span className="mb-1 text-xs font-bold text-muted-foreground">
                   {message.role === 'assistant' ? shortName : userName}
                 </span>
                 <p
                   className={cn(
-                    'rounded-2xl px-4 py-2.5 text-base leading-relaxed',
+                    'rounded-2xl px-4 py-3 text-base leading-relaxed',
                     message.role === 'assistant'
-                      ? 'rounded-tl-sm bg-muted text-foreground'
+                      ? 'rounded-tl-sm border border-border bg-muted/70 text-foreground'
                       : 'rounded-tr-sm bg-primary text-primary-foreground',
-                    message.isPartial && 'opacity-75'
+                    message.isPartial && 'opacity-85'
                   )}
                 >
                   {message.content}
@@ -599,10 +881,14 @@ const CompanionComponent = ({
         </div>
 
         {visualContent && WhiteboardComponent && (
-          <div className="min-h-[320px] w-2/3 flex-grow overflow-hidden rounded-3xl max-md:w-full">
+          <div className="min-h-[340px] w-2/3 flex-grow overflow-hidden rounded-3xl max-md:w-full">
             <WhiteboardComponent
               type={visualContent.type}
               content={visualContent.content}
+              title={visualContent.title}
+              explanation={visualContent.explanation}
+              loading={visualLoading}
+              onRegenerate={() => generateAiVisual(visualContent.type)}
               onClose={() => setVisualContent(null)}
             />
           </div>
@@ -611,7 +897,7 @@ const CompanionComponent = ({
 
       {/* Post-Session AI Insights & Interactive Quiz */}
       {insightsLoading && (
-        <div className="flex items-center justify-center gap-3 rounded-3xl border border-border bg-card p-8 shadow-xs">
+        <div className="flex items-center justify-center gap-3 rounded-3xl border-2 border-border bg-card p-8 shadow-xs">
           <Loader2 className="h-5 w-5 animate-spin text-primary" />
           <p className="text-sm font-semibold">
             Synthesizing session summary, SM-2 flashcards, and quiz with Gemini 2.5 Flash...
@@ -620,7 +906,7 @@ const CompanionComponent = ({
       )}
 
       {insights && (
-        <section className="space-y-6 rounded-3xl border border-border bg-card p-7 shadow-xs">
+        <section className="space-y-6 rounded-3xl border-2 border-border bg-card p-7 shadow-xs">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-5">
             <div className="space-y-1">
               <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
