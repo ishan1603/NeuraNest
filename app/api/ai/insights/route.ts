@@ -30,8 +30,9 @@ export async function POST(req: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY || 'dummy_key'
     );
 
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY || 'dummy_key',
+    const gemini = new OpenAI({
+      apiKey: process.env.GEMINI_API_KEY || 'dummy_key',
+      baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
     });
 
     const { callId } = await req.json();
@@ -59,8 +60,8 @@ export async function POST(req: Request) {
       .update({ insights_status: 'pending' })
       .eq('id', session.id);
 
-    const completion = await openai.chat.completions.parse({
-      model: 'gpt-4o-mini',
+    const completion = await gemini.chat.completions.parse({
+      model: 'gemini-2.5-flash',
       messages: [
         {
           role: 'system',
@@ -78,7 +79,7 @@ export async function POST(req: Request) {
     const parsed = completion.choices[0]?.message?.parsed;
 
     if (!parsed) {
-      throw new Error('Failed to parse insights');
+      throw new Error('Failed to parse insights from Gemini');
     }
 
     if (parsed.flashcards.length > 0) {

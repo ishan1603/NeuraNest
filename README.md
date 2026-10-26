@@ -6,7 +6,7 @@
     <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
     <img src="https://img.shields.io/badge/Supabase_pgvector-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase" />
     <img src="https://img.shields.io/badge/Vapi_Voice_AI-10B981?style=for-the-badge&logoColor=white" alt="Vapi" />
-    <img src="https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white" alt="OpenAI" />
+    <img src="https://img.shields.io/badge/Google_Gemini-8E75B2?style=for-the-badge&logo=googlegemini&logoColor=white" alt="Google Gemini" />
     <img src="https://img.shields.io/badge/Clerk-6C47FF?style=for-the-badge&logo=clerk&logoColor=white" alt="Clerk" />
     <img src="https://img.shields.io/badge/Tailwind_CSS_v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Tailwind CSS" />
   </div>
@@ -43,7 +43,7 @@
 **NeuraNest** transforms passive self-study into an active, multi-modal tutoring experience. Students create or pick specialized AI voice companions across subjects (`Maths`, `Science`, `Coding`, `Language`, `History`, `Economics`), upload their own PDF lecture notes into a vector knowledge base, and converse naturally in real time.
 
 During a live voice session, the AI tutor can:
-- **Search uploaded study notes** via semantic vector similarity (`pgvector` + `text-embedding-3-small`) to ground answers in the student's curriculum.
+- **Search uploaded study notes** via semantic vector similarity (`pgvector` + Google `gemini-embedding-001`) to ground answers in the student's curriculum.
 - **Draw live visual explanations** on an interactive split-screen whiteboard using **Mermaid.js** flowcharts/diagrams and **KaTeX** mathematical equations.
 - **Automatically synthesize post-session learning artifacts** (structured summary, key concepts, multiple-choice quizzes, and **SM-2 spaced repetition flashcards**) when the call ends.
 
@@ -70,8 +70,8 @@ flowchart TB
 
   subgraph ExternalAI["AI & Voice Infrastructure"]
     VapiCloud["Vapi Orchestrator (Deepgram Nova-3 STT + ElevenLabs TTS)"]
-    OpenAILLM["OpenAI gpt-4o-mini (Tutoring + Zod Structured Insights)"]
-    OpenAIEmbed["OpenAI text-embedding-3-small (1536-dim Embeddings)"]
+    GeminiLLM["Google Gemini 2.5 Flash (Tutoring + Zod Structured Insights)"]
+    GeminiEmbed["Google gemini-embedding-001 (1536-dim Embeddings)"]
   end
 
   subgraph DataAuth["Data, Auth & Observability"]
@@ -88,16 +88,16 @@ flowchart TB
   KBUI --> DocAPI
   SRSUI --> Actions
 
-  DocAPI -->|"Chunked Text"| OpenAIEmbed
-  OpenAIEmbed -->|"1536-dim Vectors"| PgVector
+  DocAPI -->|"Chunked Text"| GeminiEmbed
+  GeminiEmbed -->|"1536-dim Vectors"| PgVector
 
-  VapiCloud <-->|"Conversation Turns"| OpenAILLM
+  VapiCloud <-->|"Conversation Turns"| GeminiLLM
   VapiCloud -->|"Server Tool Call (search_knowledge_base)"| WebhookAPI
   VapiCloud -->|"end-of-call-report"| WebhookAPI
 
   WebhookAPI -->|"match_document_chunks RPC"| PgVector
   WebhookAPI -->|"Trigger Async Analysis"| InsightsAPI
-  InsightsAPI -->|"Zod Schema Parse"| OpenAILLM
+  InsightsAPI -->|"Zod Schema Parse"| GeminiLLM
   InsightsAPI -->|"Persist Insights & Flashcards"| SupabaseDB
   Actions --> SupabaseDB
 ```
@@ -114,7 +114,7 @@ sequenceDiagram
   participant Vapi as Vapi Voice Cloud
   participant Webhook as /api/vapi/webhook
   participant Insights as /api/ai/insights
-  participant OpenAI as OpenAI API
+  participant Gemini as Google Gemini API
   participant DB as Supabase (PostgreSQL + pgvector)
 
   Student->>Browser: Click "Start Session"
@@ -127,7 +127,7 @@ sequenceDiagram
     Vapi-->>Browser: Streaming partial & final transcripts
     alt Student asks about uploaded PDF notes
       Vapi->>Webhook: tool-calls (search_knowledge_base)
-      Webhook->>OpenAI: Embed query (text-embedding-3-small)
+      Webhook->>Gemini: Embed query (gemini-embedding-001, 1536 dims)
       Webhook->>DB: RPC match_document_chunks (HNSW cosine similarity)
       DB-->>Webhook: Top-K relevant document chunks
       Webhook-->>Vapi: Grounded context
@@ -142,8 +142,8 @@ sequenceDiagram
   Vapi->>Webhook: end-of-call-report (transcript, duration, cost)
   Webhook->>DB: Update session_history (status = "finalizing")
   Webhook->>Insights: POST /api/ai/insights { callId }
-  Insights->>OpenAI: chat.completions.parse (Zod InsightsSchema)
-  OpenAI-->>Insights: { summary, key_concepts, flashcards, quiz }
+  Insights->>Gemini: chat.completions.parse (Zod InsightsSchema)
+  Gemini-->>Insights: { summary, key_concepts, flashcards, quiz }
   Insights->>DB: Insert due flashcards + mark session status = "completed"
 ```
 
@@ -155,7 +155,7 @@ sequenceDiagram
 flowchart LR
   PDF["User PDF Upload"] --> Parse["unpdf Text Extraction"]
   Parse --> Chunk["Sliding-Window Chunker (1000 chars, 200 overlap)"]
-  Chunk --> Embed["OpenAI text-embedding-3-small (1536 dims)"]
+  Chunk --> Embed["Google gemini-embedding-001 (1536 dims)"]
   Embed --> Store["Supabase document_chunks (HNSW Vector Index)"]
   Store --> Search["Live Vapi Tool Call: match_document_chunks()"]
 ```
@@ -240,9 +240,9 @@ erDiagram
 
 ## ✨ Key Features
 
-- **🎙️ Real-Time Voice AI Companions**: Configurable voice tutors powered by Vapi, Deepgram Nova-3/Nova-2 speech-to-text, OpenAI `gpt-4o-mini`, and ElevenLabs voices with live partial-to-final transcript streaming.
+- **🎙️ Real-Time Voice AI Companions**: Configurable voice tutors powered by Vapi, Deepgram Nova-3/Nova-2 speech-to-text, Google `gemini-2.5-flash`, and ElevenLabs voices with live partial-to-final transcript streaming.
 - **📐 Live Interactive Whiteboard**: Client-side Vapi function tools (`render_diagram` and `render_equation`) dynamically open a split-screen canvas rendering **Mermaid.js** diagrams and **KaTeX** equations during the conversation.
-- **📚 RAG Knowledge Base (`pgvector`)**: Upload PDF study notes in `/knowledge`. Documents are parsed server-side with `unpdf`, chunked with sliding-window overlap, embedded with `text-embedding-3-small`, indexed with an HNSW cosine index, and queried mid-call via `search_knowledge_base`.
+- **📚 RAG Knowledge Base (`pgvector`)**: Upload PDF study notes in `/knowledge`. Documents are parsed server-side with `unpdf`, chunked with sliding-window overlap, embedded with Google `gemini-embedding-001` (`1536` dimensions), indexed with an HNSW cosine index, and queried mid-call via `search_knowledge_base`.
 - **🧠 SuperMemo SM-2 Spaced Repetition**: Post-call transcripts are analyzed with Zod structured outputs to generate flashcards. Review due cards at `/review` with Anki-style grade buttons (`Again`, `Hard`, `Good`, `Easy`), live next-interval previews, and instant keyboard shortcuts (`Space`, `1`–`4`).
 - **🏆 Deterministic Gamification Engine**: XP, level progression, daily/longest study streaks, and 10 achievement badges on `/my-journey` are computed as a pure function over source-of-truth session, quiz, and flashcard records—preventing state drift and enabling fast unit testing.
 - **🎨 Design-Engineered UI**: Built with custom cubic-bezier easing curves, GPU-accelerated transitions, capability-gated hover states (`@media (hover: hover) and (pointer: fine)`), `prefers-reduced-motion` support, and mobile-native viewport handling (`100dvh`, safe-area insets, zero tap-highlight flash).
@@ -255,7 +255,7 @@ erDiagram
 | :--- | :--- |
 | **Framework** | Next.js 15.3 (App Router, Server Actions, Turbopack), React 19, TypeScript 5 |
 | **Styling & Motion** | Tailwind CSS v4, Radix UI / shadcn/ui, Lucide Icons, Lottie, Custom CSS Easing Tokens |
-| **Voice & AI** | Vapi Web SDK (`@vapi-ai/web`), OpenAI SDK v7 (`gpt-4o-mini`, `text-embedding-3-small`), Deepgram, ElevenLabs |
+| **Voice & AI** | Vapi Web SDK (`@vapi-ai/web`), Google Gemini (`gemini-2.5-flash`, `gemini-embedding-001`), Deepgram, ElevenLabs |
 | **Visual Rendering** | Mermaid.js v12 (Diagrams), KaTeX (LaTeX Math Rendering) |
 | **Database & Vector Search** | Supabase PostgreSQL, `pgvector` (HNSW Cosine Index), Row Level Security (RLS) |
 | **Auth & Billing** | Clerk (`@clerk/nextjs`) Authentication & Subscription Plan Gating |
@@ -300,8 +300,8 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 # Vapi Voice AI
 NEXT_PUBLIC_VAPI_PUBLIC_KEY=your_vapi_public_key
 
-# OpenAI (Structured Insights + Embeddings)
-OPENAI_API_KEY=sk-proj-...
+# Google Gemini (Structured Insights + 1536-dim Embeddings)
+GEMINI_API_KEY=AIzaSy...
 
 # Public App URL (for Vapi Webhooks)
 NEXT_PUBLIC_APP_URL=http://localhost:3000

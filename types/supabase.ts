@@ -398,7 +398,7 @@ export interface Database {
       match_document_chunks: {
         Args: {
           query_embedding: string
-          p_companion_id: string
+          p_companion_id?: string | null
           match_count?: number
           p_user_id?: string
         }

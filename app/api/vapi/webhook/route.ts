@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '@/types/supabase';
+import { embedQuery } from '@/lib/rag';
 
 // This webhook is called by Vapi. We bypass Clerk auth and use the service role key
 // because the webhook comes from Vapi's servers, not the user's browser.
@@ -70,24 +71,13 @@ export async function POST(req: Request) {
           }
 
           try {
-            const OpenAI = (await import('openai')).default;
-            const openai = new OpenAI({
-              apiKey: process.env.OPENAI_API_KEY || 'dummy_key_for_build',
-            });
-
-            const embRes = await openai.embeddings.create({
-              model: 'text-embedding-3-small',
-              input: query,
-              dimensions: 1536,
-            });
-            const queryEmbedding = embRes.data[0].embedding;
+            const queryEmbedding = await embedQuery(query);
 
             const { data: chunks, error: matchError } = await supabase.rpc(
               'match_document_chunks',
               {
                 query_embedding: queryEmbedding as unknown as string,
-                p_companion_id:
-                  '00000000-0000-0000-0000-000000000000',
+                p_companion_id: null,
                 match_count: 5,
                 p_user_id: user_id,
               }

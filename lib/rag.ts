@@ -1,9 +1,15 @@
 import { getDocumentProxy, extractText } from 'unpdf';
-import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || 'dummy_key_for_build',
-});
+const GEMINI_EMBEDDING_MODEL = 'models/gemini-embedding-001';
+const EMBEDDING_DIMENSIONS = 1536;
+
+function getGeminiApiKey(): string {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('Missing GEMINI_API_KEY environment variable');
+  }
+  return apiKey;
+}
 
 /**
  * Parses text from a PDF ArrayBuffer
@@ -46,21 +52,71 @@ export function chunkText(text: string, chunkSize: number = 1000, overlap: numbe
 }
 
 /**
- * Generates embeddings for a batch of text chunks
+ * Generates a 1536-dimensional embedding for a single search query using Gemini gemini-embedding-001
+ */
+export async function embedQuery(query: string): Promise<number[]> {
+  const apiKey = getGeminiApiKey();
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/${GEMINI_EMBEDDING_MODEL}:embedContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: GEMINI_EMBEDDING_MODEL,
+        content: { parts: [{ text: query }] },
+        outputDimensionality: EMBEDDING_DIMENSIONS,
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Gemini embedContent failed (${res.status}): ${errText}`);
+  }
+
+  const data = (await res.json()) as { embedding?: { values: number[] } };
+  if (!data.embedding?.values) {
+    throw new Error('Invalid embedding response from Gemini API');
+  }
+  return data.embedding.values;
+}
+
+/**
+ * Generates 1536-dimensional embeddings for a batch of text chunks using Gemini gemini-embedding-001
  */
 export async function generateEmbeddings(chunks: string[]): Promise<number[][]> {
+  const apiKey = getGeminiApiKey();
   const batchSize = 100;
   const allEmbeddings: number[][] = [];
 
   for (let i = 0; i < chunks.length; i += batchSize) {
     const batch = chunks.slice(i, i + batchSize);
-    const response = await openai.embeddings.create({
-      model: 'text-embedding-3-small',
-      input: batch,
-      dimensions: 1536,
-    });
-    const batchEmbeddings = response.data.map(item => item.embedding);
-    allEmbeddings.push(...batchEmbeddings);
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/${GEMINI_EMBEDDING_MODEL}:batchEmbedContents?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requests: batch.map(text => ({
+            model: GEMINI_EMBEDDING_MODEL,
+            content: { parts: [{ text }] },
+            outputDimensionality: EMBEDDING_DIMENSIONS,
+          })),
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Gemini batchEmbedContents failed (${res.status}): ${errText}`);
+    }
+
+    const data = (await res.json()) as { embeddings?: { values: number[] }[] };
+    if (!data.embeddings) {
+      throw new Error('Invalid batch embedding response from Gemini API');
+    }
+
+    allEmbeddings.push(...data.embeddings.map(item => item.values));
   }
 
   return allEmbeddings;

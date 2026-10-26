@@ -88,8 +88,8 @@ export default function KnowledgeBaseManager() {
           <h2 className="text-xl font-bold tracking-tight">Upload Study Material (PDF)</h2>
           <p className="max-w-xl text-sm text-muted-foreground">
             Documents are parsed with <code className="rounded bg-muted px-1.5 py-0.5">unpdf</code>,
-            split into overlapping semantic chunks, embedded with OpenAI{' '}
-            <code className="rounded bg-muted px-1.5 py-0.5">text-embedding-3-small</code>, and
+            split into overlapping semantic chunks, embedded with Google Gemini{' '}
+            <code className="rounded bg-muted px-1.5 py-0.5">gemini-embedding-001</code>, and
             stored in Supabase <code className="rounded bg-muted px-1.5 py-0.5">pgvector</code> for
             live voice retrieval.
           </p>
